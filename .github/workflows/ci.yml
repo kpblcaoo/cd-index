@@ -9,7 +9,7 @@ jobs:
         run: echo "::set-output name=content::$(cat global.json)"
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ fromJson(join('', fromJson(steps.read_global.outputs.content)).sdk.version) }}
+          dotnet-version: '9.0.304'
       - run: dotnet restore
       - run: dotnet build -c Release --nologo /warnaserror
       - run: dotnet test -c Release --nologo --collect:"XPlat Code Coverage"
@@ -19,11 +19,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - id: read_global
-        run: echo "::set-output name=content::$(cat global.json)"
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ fromJson(join('', fromJson(steps.read_global.outputs.content)).sdk.version) }}
+          dotnet-version: '9.0.304'
       - run: dotnet restore
       - run: dotnet build -c Release --nologo /warnaserror
       - run: dotnet test -c Release --nologo
