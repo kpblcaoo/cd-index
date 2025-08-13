@@ -23,8 +23,8 @@ public static class PathEx
 {
     public static string Normalize(string path, string repoRoot)
     {
-        var rel = path.Replace(repoRoot, "").TrimStart(System.IO.Path.DirectorySeparatorChar, '/');
-        return rel.Replace("\\", "/");
+        var rel = path.Replace(repoRoot, "").Replace("\\", "/").Replace("//", "/");
+        return rel.TrimStart('/');
     }
 }
 
