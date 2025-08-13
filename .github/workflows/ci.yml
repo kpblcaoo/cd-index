@@ -5,9 +5,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - id: read_global
+        run: echo "::set-output name=content::$(cat global.json)"
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.304'
+          dotnet-version: ${{ fromJson(join('', fromJson(steps.read_global.outputs.content)).sdk.version) }}
       - run: dotnet restore
       - run: dotnet build -c Release --nologo /warnaserror
       - run: dotnet test -c Release --nologo --collect:"XPlat Code Coverage"
