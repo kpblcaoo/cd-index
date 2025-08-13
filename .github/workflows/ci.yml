@@ -25,6 +25,8 @@ jobs:
         with:
           dotnet-version: '9.0.304'
       - run: dotnet restore
+      - name: Build DiApp test asset
+        run: dotnet build tests/CdIndex.Extractors.Tests/TestAssets/DiApp/DiApp.sln -c Release --nologo
       - run: dotnet build -c Release --nologo /warnaserror
       - run: dotnet test -c Release --nologo
       - run: dotnet run --project src/CdIndex.Cli -- --selfcheck > out-win.json
