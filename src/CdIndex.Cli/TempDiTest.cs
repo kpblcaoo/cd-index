@@ -1,4 +1,4 @@
-да // TEMP: For testing DI extractor functionality - REMOVE BEFORE MERGE
+// TEMP: For testing DI extractor functionality - REMOVE BEFORE MERGE
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CdIndex.Cli;
