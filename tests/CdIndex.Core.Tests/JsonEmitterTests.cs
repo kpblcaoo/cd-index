@@ -171,7 +171,10 @@ public class JsonEmitterTests
 
         var di = new DISection(new[]
         {
-            new DIEntry("IService", "Service", "Scoped")
+            new DiRegistration("IService", "Service", "Scoped", "src/Program.cs", 10)
+        }, new[]
+        {
+            new HostedService("BackgroundService", "src/Program.cs", 20)
         });
 
         var entrypoints = new EntrypointSection(new[]

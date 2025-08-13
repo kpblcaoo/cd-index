@@ -47,8 +47,11 @@ public static class JsonEmitter
         var orderedDI = Orderer.Sort(
             index.DI.Select(di => new DISection(
                 Orderer.Sort(di.Registrations,
-                    Comparer<DIEntry>.Create((x, y) =>
-                        string.Compare(x.ServiceType, y.ServiceType, StringComparison.InvariantCulture))))),
+                    Comparer<DiRegistration>.Create((x, y) =>
+                        string.Compare(x.Interface, y.Interface, StringComparison.InvariantCulture))),
+                Orderer.Sort(di.HostedServices,
+                    Comparer<HostedService>.Create((x, y) =>
+                        string.Compare(x.Type, y.Type, StringComparison.InvariantCulture))))),
             Comparer<DISection>.Create((x, y) => 0));
 
         // Order entrypoint sections

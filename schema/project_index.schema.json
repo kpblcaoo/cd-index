@@ -94,27 +94,58 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["Registrations"],
+        "required": ["Registrations", "HostedServices"],
         "properties": {
           "Registrations": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["ServiceType", "Lifetime"],
+              "required": ["Interface", "Implementation", "Lifetime", "File", "Line"],
               "properties": {
-                "ServiceType": {
+                "Interface": {
                   "type": "string",
-                  "description": "Service type being registered"
+                  "description": "Service interface or type being registered"
                 },
-                "ImplementationType": {
-                  "type": ["string", "null"],
-                  "description": "Implementation type"
+                "Implementation": {
+                  "type": "string",
+                  "description": "Implementation type or factory description"
                 },
                 "Lifetime": {
                   "type": "string",
                   "enum": ["Transient", "Scoped", "Singleton"],
-                  "default": "Transient",
                   "description": "Service lifetime"
+                },
+                "File": {
+                  "type": "string",
+                  "description": "Repo-relative file path with forward slashes"
+                },
+                "Line": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Line number (1-based)"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "HostedServices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["Type", "File", "Line"],
+              "properties": {
+                "Type": {
+                  "type": "string",
+                  "description": "Hosted service type name"
+                },
+                "File": {
+                  "type": "string",
+                  "description": "Repo-relative file path with forward slashes"
+                },
+                "Line": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Line number (1-based)"
                 }
               },
               "additionalProperties": false
