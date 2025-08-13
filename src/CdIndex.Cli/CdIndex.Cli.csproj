@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CdIndex.Core/CdIndex.Core.csproj" />
+    <ProjectReference Include="../CdIndex.Roslyn/CdIndex.Roslyn.csproj" />
+    <ProjectReference Include="../CdIndex.Extractors/CdIndex.Extractors.csproj" />
+    <ProjectReference Include="../CdIndex.Emit/CdIndex.Emit.csproj" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta7.25380.108" />
+  </ItemGroup>
+</Project>
