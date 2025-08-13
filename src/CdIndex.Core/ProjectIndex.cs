@@ -33,7 +33,8 @@ public sealed record TreeSection(
 );
 
 public sealed record DISection(
-    IReadOnlyList<DIEntry> Registrations
+    IReadOnlyList<DiRegistration> Registrations,
+    IReadOnlyList<HostedService> HostedServices
 );
 
 public sealed record EntrypointSection(
@@ -47,11 +48,6 @@ public sealed record CommandSection;
 public sealed record TestSection;
 
 // Supporting types for P0 sections
-public sealed record DIEntry(
-    string ServiceType,
-    string? ImplementationType = null,
-    string Lifetime = "Transient"
-);
 
 public sealed record EntrypointEntry(
     string Name,

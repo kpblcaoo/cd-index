@@ -17,9 +17,19 @@ class Program
         {
             Description = "Emit minimal deterministic JSON for self-check"
         };
+        var scanTreeOnlyOption = new Option<bool>("--scan-tree-only")
+        {
+            Description = "Only scan tree section (for selfcheck)"
+        };
+        var scanDiOption = new Option<bool>("--scan-di")
+        {
+            Description = "Include DI extraction in selfcheck"
+        };
         var rootCommand = new RootCommand("cd-index CLI tool");
         rootCommand.Options.Add(versionOption);
         rootCommand.Options.Add(selfCheckOption);
+        rootCommand.Options.Add(scanTreeOnlyOption);
+        rootCommand.Options.Add(scanDiOption);
 
         var parseResult = rootCommand.Parse(args);
         if (parseResult.GetValue(versionOption))
@@ -29,7 +39,9 @@ class Program
         }
         if (parseResult.GetValue(selfCheckOption))
         {
-            EmitSelfCheck.Run();
+            var scanTreeOnly = parseResult.GetValue(scanTreeOnlyOption);
+            var scanDi = parseResult.GetValue(scanDiOption);
+            EmitSelfCheck.Run(scanTreeOnly, scanDi);
             return 0;
         }
         if (args.Length == 0 || parseResult.Errors.Count > 0)
