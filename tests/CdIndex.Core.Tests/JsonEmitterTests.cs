@@ -22,7 +22,7 @@ public class JsonEmitterTests
         // Assert
         Assert.NotNull(json);
         Assert.NotEmpty(json);
-        
+
         // Should be valid JSON
         var parsed = JsonDocument.Parse(json);
         Assert.NotNull(parsed);
@@ -78,7 +78,9 @@ public class JsonEmitterTests
     public void JsonEmitter_Emit_ValidatesAgainstSchema()
     {
         // Arrange
-        var schemaJson = File.ReadAllText("/home/runner/work/cd-index/cd-index/schema/project_index.schema.json");
+        var schemaPath = FindSchemaUpwards("project_index.schema.json");
+        Assert.True(File.Exists(schemaPath), $"Schema file not found: {schemaPath}");
+        var schemaJson = File.ReadAllText(schemaPath);
         var schema = JSchema.Parse(schemaJson);
         var index = CreateSampleProjectIndex();
 
@@ -115,6 +117,34 @@ public class JsonEmitterTests
 
         // Assert
         Assert.Contains(utcDate, json);
+    }
+
+    [Fact]
+    public void JsonEmitter_Emit_InvalidatesSchema_WhenRequiredFieldMissing()
+    {
+        // Arrange
+        var schemaPath = FindSchemaUpwards("project_index.schema.json");
+        var schemaJson = File.ReadAllText(schemaPath);
+        var schema = JSchema.Parse(schemaJson);
+        // Создаём минимальный JSON без обязательного поля Meta
+        var jsonText = @"{
+            ""Project"": [],
+            ""Tree"": [],
+            ""DI"": [],
+            ""Entrypoints"": [],
+            ""MessageFlow"": [],
+            ""Callgraphs"": [],
+            ""Configs"": [],
+            ""Commands"": [],
+            ""Tests"": []
+        }";
+        var jsonObject = JObject.Parse(jsonText);
+        // Act
+        IList<string> errors;
+        var isValid = jsonObject.IsValid(schema, out errors);
+        // Assert
+        Assert.False(isValid);
+        Assert.Contains(errors, e => e.Contains("Meta"));
     }
 
     private static ProjectIndex CreateSampleProjectIndex()
@@ -168,7 +198,7 @@ public class JsonEmitterTests
     {
         var meta = new MetaSection(timestamp, "1.0.0");
 
-        var files = filePaths.Select(path => 
+        var files = filePaths.Select(path =>
             new FileEntry(path, "a".PadRight(64, '0'), 10, "source")).ToArray();
 
         var tree = new TreeSection(files);
@@ -185,5 +215,18 @@ public class JsonEmitterTests
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
         );
+    }
+
+    private static string FindSchemaUpwards(string schemaFile)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8; i++) // up to 8 levels up
+        {
+            var candidate = Path.Combine(dir.FullName, "schema", schemaFile);
+            if (File.Exists(candidate)) return candidate;
+            dir = dir.Parent;
+            if (dir == null) break;
+        }
+        throw new FileNotFoundException($"Schema file not found in any parent directory: {schemaFile}");
     }
 }
