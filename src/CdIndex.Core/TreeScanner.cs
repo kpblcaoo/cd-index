@@ -27,6 +27,8 @@ public static class TreeScanner
     private static bool ShouldInclude(string filePath, string repoRoot, IEnumerable<string> exts, IEnumerable<string> ignores)
     {
         var relPath = NormalizePath(Path.GetRelativePath(repoRoot, filePath));
+        var fileName = Path.GetFileName(relPath).ToLowerInvariant();
+        if (fileName == "out.json" || fileName == "out-win.json") return false;
         foreach (var ig in ignores)
         {
             if (ig.StartsWith(".")) // .Designer.cs
@@ -56,23 +58,34 @@ public static class TreeScanner
 
     private static (string sha, int loc) GetShaAndLoc(string filePath)
     {
-        using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        using var reader = new StreamReader(stream, Encoding.UTF8, true);
-        using var sha256 = SHA256.Create();
-        int loc = 0;
-        var buffer = new StringBuilder();
-        string? line;
-        while ((line = reader.ReadLine()) != null)
+        const int maxTries = 3;
+        for (int attempt = 1; ; attempt++)
         {
-            buffer.Append(line);
-            buffer.Append('\n');
-            loc++;
+            try
+            {
+                using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var reader = new StreamReader(stream, Encoding.UTF8, true);
+                using var sha256 = SHA256.Create();
+                int loc = 0;
+                var buffer = new StringBuilder();
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    buffer.Append(line);
+                    buffer.Append('\n');
+                    loc++;
+                }
+                // Remove BOM if present
+                var text = buffer.ToString();
+                if (text.Length > 0 && text[0] == '\uFEFF') text = text.Substring(1);
+                var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
+                return (BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant(), loc);
+            }
+            catch (IOException) when (attempt < maxTries)
+            {
+                System.Threading.Thread.Sleep(100);
+            }
         }
-        // Remove BOM if present
-        var text = buffer.ToString();
-        if (text.Length > 0 && text[0] == '\uFEFF') text = text.Substring(1);
-        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(text));
-        return (BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant(), loc);
     }
 
     private sealed class ByPathComparer : IComparer<FileEntry>
