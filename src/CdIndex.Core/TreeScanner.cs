@@ -56,7 +56,7 @@ public static class TreeScanner
 
     private static (string sha, int loc) GetShaAndLoc(string filePath)
     {
-        using var stream = File.OpenRead(filePath);
+        using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new StreamReader(stream, Encoding.UTF8, true);
         using var sha256 = SHA256.Create();
         int loc = 0;
