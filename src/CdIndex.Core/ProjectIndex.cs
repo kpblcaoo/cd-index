@@ -29,7 +29,7 @@ public sealed record ProjectSection(
 );
 
 public sealed record TreeSection(
-    IReadOnlyList<Tree.FileEntry> Files
+    IReadOnlyList<FileEntry> Files
 );
 
 public sealed record DISection(
