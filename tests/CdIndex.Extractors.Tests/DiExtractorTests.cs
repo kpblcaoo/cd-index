@@ -152,4 +152,15 @@ public sealed class DiExtractorTests
         Assert.True(ctx.Solution.Projects.Any(), "No projects loaded from DiApp.sln. Ensure DiApp.sln builds in CI and TestAssets are present.");
         Assert.True(ctx.Solution.Projects.SelectMany(p => p.Documents).Any(), "No documents loaded from DiApp.sln. Ensure DiApp.sln builds in CI and TestAssets are present.");
     }
+
+    [Fact]
+    public async Task Extract_DiApp_DebugProjectAndDocumentCounts()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var projectCount = ctx.Solution.Projects.Count();
+        var docCount = ctx.Solution.Projects.SelectMany(p => p.Documents).Count();
+        Console.WriteLine($"[DiExtractorTests] Projects loaded: {projectCount}, Documents loaded: {docCount}");
+        Assert.True(projectCount > 0, "No projects loaded from DiApp.sln. Check build and asset paths.");
+        Assert.True(docCount > 0, "No documents loaded from DiApp.sln. Check build and asset paths.");
+    }
 }
