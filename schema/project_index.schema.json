@@ -1,1 +1,185 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kpblcaoo/cd-index/schema/project_index.schema.json",
+  "title": "CD Index Project Schema",
+  "description": "Schema for cd-index project structure and dependency flows",
+  "type": "object",
+  "required": ["Meta", "Project", "Tree", "DI", "Entrypoints", "MessageFlow", "Callgraphs", "Configs", "Commands", "Tests"],
+  "properties": {
+    "Meta": {
+      "type": "object",
+      "required": ["GeneratedAt", "Version"],
+      "properties": {
+        "GeneratedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC ISO-8601 timestamp when index was generated"
+        },
+        "Version": {
+          "type": "string",
+          "description": "Version of the cd-index tool"
+        },
+        "RepositoryUrl": {
+          "type": ["string", "null"],
+          "description": "URL of the repository being indexed"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Project": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["Name", "Path"],
+        "properties": {
+          "Name": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "Path": {
+            "type": "string",
+            "description": "Normalized path to project file"
+          },
+          "Framework": {
+            "type": ["string", "null"],
+            "description": "Target framework"
+          },
+          "Language": {
+            "type": ["string", "null"],
+            "description": "Programming language"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "Tree": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["Files"],
+        "properties": {
+          "Files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["Path", "Sha256", "Loc", "Kind"],
+              "properties": {
+                "Path": {
+                  "type": "string",
+                  "description": "Normalized file path relative to repository root"
+                },
+                "Sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$",
+                  "description": "SHA256 hash of file content"
+                },
+                "Loc": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Lines of code count"
+                },
+                "Kind": {
+                  "type": "string",
+                  "description": "File type/kind"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "DI": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["Registrations"],
+        "properties": {
+          "Registrations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["ServiceType", "Lifetime"],
+              "properties": {
+                "ServiceType": {
+                  "type": "string",
+                  "description": "Service type being registered"
+                },
+                "ImplementationType": {
+                  "type": ["string", "null"],
+                  "description": "Implementation type"
+                },
+                "Lifetime": {
+                  "type": "string",
+                  "enum": ["Transient", "Scoped", "Singleton"],
+                  "default": "Transient",
+                  "description": "Service lifetime"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "Entrypoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["Entrypoints"],
+        "properties": {
+          "Entrypoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["Name", "Path", "Type"],
+              "properties": {
+                "Name": {
+                  "type": "string",
+                  "description": "Entrypoint name"
+                },
+                "Path": {
+                  "type": "string",
+                  "description": "Path to entrypoint"
+                },
+                "Type": {
+                  "type": "string",
+                  "description": "Type of entrypoint"
+                },
+                "Description": {
+                  "type": ["string", "null"],
+                  "description": "Optional description"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "MessageFlow": {
+      "type": "array",
+      "description": "Message flow analysis (future extension)"
+    },
+    "Callgraphs": {
+      "type": "array",
+      "description": "Call graph analysis (future extension)"
+    },
+    "Configs": {
+      "type": "array",
+      "description": "Configuration analysis (future extension)"
+    },
+    "Commands": {
+      "type": "array",
+      "description": "Command analysis (future extension)"
+    },
+    "Tests": {
+      "type": "array",
+      "description": "Test analysis (future extension)"
+    }
+  },
+  "additionalProperties": false
+}
