@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Xunit;
 using CdIndex.Core;
-using CdIndex.Core.Tree;
 using CdIndex.Emit;
 using Newtonsoft.Json.Schema;
 using Newtonsoft.Json.Linq;
@@ -164,8 +163,8 @@ public class JsonEmitterTests
 
         var files = new[]
         {
-            new FileEntry("src/Program.cs", "a".PadRight(64, '0'), 10, "source"),
-            new FileEntry("README.md", "b".PadRight(64, '0'), 5, "documentation")
+            new FileEntry("src/Program.cs", "cs", 10, new string('a', 64)),
+            new FileEntry("README.md", "md", 5, new string('b', 64))
         };
 
         var tree = new TreeSection(files);
@@ -199,7 +198,7 @@ public class JsonEmitterTests
         var meta = new MetaSection(timestamp, "1.0.0");
 
         var files = filePaths.Select(path =>
-            new FileEntry(path, "a".PadRight(64, '0'), 10, "source")).ToArray();
+            new FileEntry(path, Path.GetExtension(path).TrimStart('.').ToLowerInvariant(), 10, new string('a', 64))).ToArray();
 
         var tree = new TreeSection(files);
 
