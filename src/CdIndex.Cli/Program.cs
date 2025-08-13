@@ -13,13 +13,23 @@ class Program
         {
             Description = "Show tool version and exit"
         };
+        var selfCheckOption = new Option<bool>("--selfcheck")
+        {
+            Description = "Emit minimal deterministic JSON for self-check"
+        };
         var rootCommand = new RootCommand("cd-index CLI tool");
         rootCommand.Options.Add(versionOption);
+        rootCommand.Options.Add(selfCheckOption);
 
         var parseResult = rootCommand.Parse(args);
         if (parseResult.GetValue(versionOption))
         {
             Console.WriteLine("cd-index v0.0.1-dev");
+            return 0;
+        }
+        if (parseResult.GetValue(selfCheckOption))
+        {
+            EmitSelfCheck.Run();
             return 0;
         }
         if (args.Length == 0 || parseResult.Errors.Count > 0)

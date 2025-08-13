@@ -12,10 +12,10 @@ public static class JsonEmitter
     public static void Emit(ProjectIndex projectIndex, Stream stream)
     {
         using var _ = InvariantCultureScope.Enter();
-        
+
         // Order all collections for deterministic output
         var orderedIndex = OrderCollections(projectIndex);
-        
+
         JsonSerializer.Serialize(stream, orderedIndex, s_options);
     }
 
@@ -32,14 +32,14 @@ public static class JsonEmitter
     {
         // Order project sections
         var orderedProjects = Orderer.Sort(
-            index.Project, 
-            Comparer<ProjectSection>.Create((x, y) => 
+            index.Project,
+            Comparer<ProjectSection>.Create((x, y) =>
                 string.Compare(x.Name, y.Name, StringComparison.InvariantCulture)));
 
         // Order tree sections and their files
         var orderedTree = Orderer.Sort(
             index.Tree.Select(t => new TreeSection(
-                Orderer.Sort(t.Files, 
+                Orderer.Sort(t.Files,
                     Comparer<FileEntry>.Create((x, y) =>
                         string.Compare(x.Path, y.Path, StringComparison.InvariantCulture))))),
             Comparer<TreeSection>.Create((x, y) => 0)); // TreeSections don't have a natural order yet
@@ -85,7 +85,7 @@ public static class JsonEmitter
 
         // Add custom converters if needed
         options.Converters.Add(new JsonStringEnumConverter());
-        
+
         return options;
     }
 }

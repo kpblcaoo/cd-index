@@ -1,0 +1,15 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.304'
+      - run: dotnet restore
+      - run: dotnet build -c Release --nologo /warnaserror
+      - run: dotnet test -c Release --nologo --collect:"XPlat Code Coverage"
+      - run: dotnet run --project src/CdIndex.Cli -- --selfcheck > out.json
+      - run: test -f out.json && echo "selfcheck ok"
