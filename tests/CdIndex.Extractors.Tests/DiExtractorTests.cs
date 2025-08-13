@@ -144,4 +144,12 @@ public sealed class DiExtractorTests
             Assert.Contains("/", hostedService.File); // Has forward slashes
         }
     }
+
+    [Fact]
+    public async Task Extract_DiApp_FailsIfNoProjectsOrDocuments()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        Assert.True(ctx.Solution.Projects.Any(), "No projects loaded from DiApp.sln. Ensure DiApp.sln builds in CI and TestAssets are present.");
+        Assert.True(ctx.Solution.Projects.SelectMany(p => p.Documents).Any(), "No documents loaded from DiApp.sln. Ensure DiApp.sln builds in CI and TestAssets are present.");
+    }
 }
