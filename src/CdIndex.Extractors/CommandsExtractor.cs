@@ -13,19 +13,35 @@ public sealed class CommandsExtractor : IExtractor
     private readonly HashSet<(string, string?)> _seen = new();
     private readonly HashSet<string> _routerNames; // configurable list
     private readonly HashSet<string> _attrNames; // attribute simple names (without Attribute suffix)
+    private readonly bool _caseInsensitive;
+    private readonly bool _normalizeTrim;
+    private readonly bool _normalizeEnsureSlash;
+    private readonly bool _allowBare;
+    private readonly Dictionary<string, List<CommandItem>> _canonicalGroups = new(StringComparer.Ordinal);
+    private readonly List<CommandConflict> _conflicts = new();
 
     public CommandsExtractor(IEnumerable<string>? routerNames = null, IEnumerable<string>? attrNames = null)
+        : this(routerNames, attrNames, caseInsensitive: false, allowBare: false, normalizeTrim: true, normalizeEnsureSlash: true) { }
+
+    public CommandsExtractor(IEnumerable<string>? routerNames, IEnumerable<string>? attrNames, bool caseInsensitive, bool allowBare, bool normalizeTrim, bool normalizeEnsureSlash)
     {
         _routerNames = new HashSet<string>((routerNames ?? new[] { "Map", "Register", "Add", "On", "Route", "Bind" }), StringComparer.Ordinal);
         _attrNames = new HashSet<string>((attrNames ?? new[] { "Command", "Commands" }).Select(a => a.EndsWith("Attribute", StringComparison.Ordinal) ? a[..^9] : a), StringComparer.Ordinal);
+        _caseInsensitive = caseInsensitive;
+        _allowBare = allowBare || normalizeEnsureSlash; // we can accept bare if we'll add slash
+        _normalizeTrim = normalizeTrim;
+        _normalizeEnsureSlash = normalizeEnsureSlash;
     }
 
     public IReadOnlyList<CommandItem> Items => _items;
+    public IReadOnlyList<CommandConflict> Conflicts => _conflicts;
 
     public void Extract(RoslynContext context)
     {
-        _items.Clear();
-        _seen.Clear();
+    _items.Clear();
+    _seen.Clear();
+    _canonicalGroups.Clear();
+    _conflicts.Clear();
         foreach (var project in context.Solution.Projects)
         {
             foreach (var doc in project.Documents)
@@ -42,7 +58,7 @@ public sealed class CommandsExtractor : IExtractor
                 CollectHandlerAttributes(root, semantic, context); // pattern: [Command("/start"), Commands("/a","/b")]
             }
         }
-    _items.Sort(static (a, b) =>
+        _items.Sort(static (a, b) =>
         {
             var c = string.Compare(a.Command, b.Command, StringComparison.Ordinal);
             if (c != 0) return c;
@@ -101,8 +117,8 @@ public sealed class CommandsExtractor : IExtractor
         foreach (var bin in root.DescendantNodes().OfType<BinaryExpressionSyntax>())
         {
             if (!bin.IsKind(SyntaxKind.EqualsExpression)) continue;
-            var left = TryGetCommandText(bin.Left, semantic);
-            var right = TryGetCommandText(bin.Right, semantic);
+            var left = TryGetCommandText(bin.Left, semantic, allowBare: _allowBare);
+            var right = TryGetCommandText(bin.Right, semantic, allowBare: _allowBare);
             var cmd = left ?? right;
             if (cmd == null) continue;
             var (file, line) = LocationUtil.GetLocation(bin, ctx);
@@ -121,7 +137,7 @@ public sealed class CommandsExtractor : IExtractor
             if (id is not ("Equals" or "StartsWith")) continue;
             if (inv.ArgumentList.Arguments.Count == 0) continue;
             var argExpr = inv.ArgumentList.Arguments[0].Expression;
-            var cmd = TryGetCommandText(argExpr, semantic);
+            var cmd = TryGetCommandText(argExpr, semantic, allowBare: _allowBare);
             if (cmd == null) continue;
             var (file, line) = LocationUtil.GetLocation(inv, ctx);
             Add(cmd, null, file, line);
@@ -239,10 +255,10 @@ public sealed class CommandsExtractor : IExtractor
         return null;
     }
 
-    private static List<string>? TryGetCommandTexts(ExpressionSyntax expr, SemanticModel semantic)
+    private List<string>? TryGetCommandTexts(ExpressionSyntax expr, SemanticModel semantic)
     {
         // Single literal / constant
-        var single = TryGetCommandText(expr, semantic);
+        var single = TryGetCommandText(expr, semantic, allowBare: _allowBare);
         if (single != null) return new List<string> { single };
 
         // Direct inline array creation: new[] { "/a", "/b" }
@@ -282,24 +298,26 @@ public sealed class CommandsExtractor : IExtractor
         return null;
     }
 
-    private static List<string>? ExtractFromInitializer(InitializerExpressionSyntax init, SemanticModel semantic)
+    private List<string>? ExtractFromInitializer(InitializerExpressionSyntax init, SemanticModel semantic)
     {
         var list = new List<string>();
         foreach (var e in init.Expressions)
         {
-            var s = TryGetCommandText(e, semantic);
+            var s = TryGetCommandText(e, semantic, allowBare: _allowBare);
             if (s != null) list.Add(s);
         }
         return list.Count > 0 ? list : null;
     }
 
-    private static string? TryGetCommandText(ExpressionSyntax expr, SemanticModel semantic)
+    private string? TryGetCommandText(ExpressionSyntax expr, SemanticModel semantic, bool allowBare)
     {
         // Direct literal
         if (expr is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression))
         {
             var v = lit.Token.ValueText;
-            return IsCommandLiteral(v) ? v : null;
+            if (IsCommandLiteral(v)) return v;
+            if (allowBare && v.Trim().Length > 0) return v; // will normalize later
+            return null;
         }
         // Constant value resolution
         var constant = semantic.GetConstantValue(expr);
@@ -307,6 +325,7 @@ public sealed class CommandsExtractor : IExtractor
         {
             return s;
         }
+    if (allowBare && constant.HasValue && constant.Value is string s2 && s2.Trim().Length > 0) return s2;
         return null;
     }
 
@@ -324,7 +343,45 @@ public sealed class CommandsExtractor : IExtractor
 
     private void Add(string command, string? handler, string file, int line)
     {
-        if (!_seen.Add((command, handler))) return; // already recorded
-        _items.Add(new CommandItem(command, handler, file, line));
+        var norm = Normalize(command);
+        if (norm == null) return;
+        if (!_seen.Add((norm, handler))) return;
+        var item = new CommandItem(norm, handler, file, line);
+        _items.Add(item);
+        RecordCanonical(item);
+    }
+
+    private string? Normalize(string? raw)
+    {
+        if (raw == null) return null;
+        var s = raw;
+        if (_normalizeTrim) s = s.Trim();
+        if (s.Length == 0) return null;
+        if (_normalizeEnsureSlash && !s.StartsWith('/')) s = "/" + s;
+        if (s.Length < 2 || s.Any(char.IsWhiteSpace)) return null;
+        return s;
+    }
+
+    private void RecordCanonical(CommandItem item)
+    {
+        if (!_caseInsensitive) return;
+        var key = item.Command.ToLowerInvariant() + "|" + (item.Handler ?? "");
+        if (!_canonicalGroups.TryGetValue(key, out var list))
+        {
+            list = new List<CommandItem>();
+            _canonicalGroups[key] = list;
+        }
+        if (!list.Any(c => c.Command == item.Command && c.Handler == item.Handler))
+        {
+            // detect variation purely by case on command
+            bool variant = list.Any(c => !c.Command.Equals(item.Command, StringComparison.Ordinal) && c.Command.Equals(item.Command, StringComparison.OrdinalIgnoreCase));
+            list.Add(item);
+            if (variant)
+            {
+                _conflicts.Add(new CommandConflict(item.Command.ToLowerInvariant(), list.ToList()));
+            }
+        }
     }
 }
+
+public sealed record CommandConflict(string CanonicalCommand, IReadOnlyList<CommandItem> Variants);

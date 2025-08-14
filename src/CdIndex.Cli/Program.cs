@@ -29,6 +29,7 @@ Options:
     --commands-normalize <rules>                Comma/space list: trim,ensure-slash (default trim,ensure-slash)
     --commands-dedup <mode>                     case-sensitive|case-insensitive (default case-sensitive)
     --commands-conflicts <mode>                 warn|error|ignore (default warn)
+    --commands-conflict-report <file>           Optional JSON file with conflict details (no schema change)
     --scan-flow / --no-scan-flow     Enable/disable message flow extraction (default off)
     --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
     --flow-method <MethodName>       Handler method name for flow (default HandleAsync)
@@ -79,6 +80,7 @@ Options:
             FileInfo? outFile = null;
             var exts = new List<string>();
             var ignores = new List<string>();
+        string? commandConflictReport = null;
             var locMode = "physical";
             bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
             string? flowHandler = null; string flowMethod = "HandleAsync";
@@ -118,6 +120,9 @@ Options:
                     case "--commands-attr-names":
                         if (i + 1 < args.Length) commandAttrNames.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5;
                         break;
+                    case "--commands-conflict-report":
+                        if (i + 1 < args.Length) commandConflictReport = args[++i]; else return 5;
+                        break;
                     case "--commands-normalize":
                         if (i + 1 < args.Length) commandNormalize.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5;
                         break;
@@ -152,6 +157,7 @@ Options:
                 scanDi,
                 scanEntrypoints,
                 scanConfigs,
+        // conflict report handled inside ScanCommand
                 envPrefixes,
                 scanCommands,
                 scanFlow,
@@ -162,7 +168,8 @@ Options:
                 commandAttrNames,
                 commandNormalize,
                 commandDedup,
-                commandConflicts);
+                commandConflicts,
+                commandConflictReport);
             return code;
         }
 

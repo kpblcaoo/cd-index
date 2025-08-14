@@ -15,7 +15,7 @@ internal static class ScanCommand
         bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool scanCommands,
     bool scanFlow, string? flowHandler, string flowMethod, bool verbose, List<string>? commandRouterNames = null,
     List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
-    string? commandConflicts = null)
+    string? commandConflicts = null, string? commandConflictReport = null)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -124,10 +124,74 @@ internal static class ScanCommand
         {
             try
             {
+                // TODO: wire actual flags for case-insensitive, allowBare, normalization selection
+                var commandDedupMode = commandDedup; // null -> case-sensitive
+                var normTrim = commandNormalize == null || commandNormalize.Count == 0 || commandNormalize.Contains("trim", StringComparer.OrdinalIgnoreCase);
+                var normSlash = commandNormalize == null || commandNormalize.Count == 0 || commandNormalize.Contains("ensure-slash", StringComparer.OrdinalIgnoreCase);
                 var cmdExtractor = new CommandsExtractor(
                     commandRouterNames != null && commandRouterNames.Count > 0 ? commandRouterNames : null,
-                    commandAttrNames != null && commandAttrNames.Count > 0 ? commandAttrNames : null);
+                    commandAttrNames != null && commandAttrNames.Count > 0 ? commandAttrNames : null,
+                    caseInsensitive: commandDedupMode == "case-insensitive" || commandDedupMode == "ci",
+                    allowBare: false,
+                    normalizeTrim: normTrim,
+                    normalizeEnsureSlash: normSlash);
                 cmdExtractor.Extract(roslyn);
+                var conflictsMode = (commandConflicts ?? "warn").ToLowerInvariant();
+                if (cmdExtractor.Conflicts.Count > 0)
+                {
+                    var orderedConflicts = cmdExtractor.Conflicts
+                        .GroupBy(c => c.CanonicalCommand)
+                        .Select(g => new { Key = g.Key, Variants = g.SelectMany(v => v.Variants).Distinct().ToList() })
+                        .OrderBy(x => x.Key, StringComparer.Ordinal)
+                        .ToList();
+                    if (conflictsMode is "warn" or "error")
+                    {
+                        foreach (var c in orderedConflicts)
+                        {
+                            foreach (var v in c.Variants.OrderBy(v => v.Command, StringComparer.Ordinal))
+                            {
+                                Console.Error.WriteLine($"COMMAND-CONFLICT {c.Key} -> {v.Command} (handler={v.Handler ?? "<null>"} {v.File}:{v.Line})");
+                            }
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(commandConflictReport))
+                    {
+                        try
+                        {
+                            using var sw = new StreamWriter(commandConflictReport!, false);
+                            sw.Write("[");
+                            bool firstC = true;
+                            foreach (var c in orderedConflicts)
+                            {
+                                if (!firstC) sw.Write(','); firstC = false;
+                                sw.Write("{\"canonical\":\""); sw.Write(c.Key); sw.Write("\",\"variants\":[");
+                                bool firstV = true;
+                                foreach (var v in c.Variants.OrderBy(v => v.Command, StringComparer.Ordinal))
+                                {
+                                    if (!firstV) sw.Write(','); firstV = false;
+                                    sw.Write("{\"command\":\""); sw.Write(v.Command);
+                                    sw.Write("\",\"handler\":"); sw.Write(v.Handler != null ? $"\"{v.Handler}\"" : "null");
+                                    // file/line
+                                    sw.Write(",\"file\":\"");
+                                    sw.Write(v.File);
+                                    sw.Write("\",\"line\":");
+                                    sw.Write(v.Line);
+                                    sw.Write("}");
+                                }
+                                sw.Write("]}");
+                            }
+                            sw.Write("]");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine("WARN: failed writing conflict report: " + ex.Message);
+                        }
+                    }
+                    if (conflictsMode == "error")
+                    {
+                        return 12;
+                    }
+                }
                 commandSections.Add(new CommandSection(cmdExtractor.Items.ToList()));
             }
             catch (Exception ex)
