@@ -47,7 +47,9 @@ public sealed record EntrypointsSection(
 public sealed record ProjectRef(string Name, string File);
 public sealed record ProgramMain(string File, int Line, string? TypeName);
 
-public sealed record MessageFlowSection;
+public sealed record MessageFlowSection(
+    IReadOnlyList<FlowNode> Nodes
+);
 public sealed record CallgraphSection;
 public sealed record ConfigSection(
     IReadOnlyList<string> EnvKeys,
@@ -63,6 +65,14 @@ public sealed record CommandItem(
     int Line
 );
 public sealed record TestSection;
+
+public sealed record FlowNode(
+    int Order,
+    string Kind,
+    string Detail,
+    string File,
+    int Line
+);
 
 // Supporting types for P0 sections
 
