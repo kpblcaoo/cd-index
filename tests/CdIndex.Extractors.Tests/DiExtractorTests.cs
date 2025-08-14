@@ -215,9 +215,47 @@ public sealed class CommandsExtractorTests
         Assert.Contains(items, i => i.Command == "/help" && i.Handler == null);
         Assert.Contains(items, i => i.Command == "/about" && i.Handler == null);
         Assert.Contains(items, i => i.Command == "/ban" && i.Handler == null);
+        // constants + variable handler
+        Assert.Contains(items, i => i.Command == "/ping" && i.Handler == "PingHandler");
+        // dedup: /start should not appear twice with same handler
+        Assert.True(items.Count(i => i.Command == "/start" && i.Handler == "StartHandler") == 1, "/start duplicate detected");
         // Sorted
         var sorted = items.OrderBy(i => i.Command, StringComparer.Ordinal).ThenBy(i => i.Handler, StringComparer.Ordinal).ToList();
-        Assert.Equal(sorted.Select(x => x.Command+"|"+x.Handler), items.Select(x => x.Command+"|"+x.Handler));
+    Assert.Equal(sorted.Select(x => x.Command + "|" + x.Handler), items.Select(x => x.Command + "|" + x.Handler));
+    }
+
+    [Fact]
+    public async Task CommandsExtractor_CustomRouterNames()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        // Provide a custom list including existing defaults to ensure no regression
+    var extractor = new CommandsExtractor(new[] { "Map", "Register", "Add", "On", "Route", "Bind", "Hook" });
+        extractor.Extract(ctx);
+        var items = extractor.Items;
+        Assert.Contains(items, i => i.Command == "/stats" && i.Handler == "StatsHandler");
+    }
+
+    [Fact]
+    public async Task CommandsExtractor_PropertyBasedHandlers()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new CommandsExtractor();
+        extractor.Extract(ctx);
+        var items = extractor.Items;
+        // Property-based handlers should have been discovered and normalized with leading slash
+        Assert.Contains(items, i => i.Command == "/start" && i.Handler == "StartCommandHandler");
+        Assert.Contains(items, i => i.Command == "/stats" && i.Handler == "StatsCommandHandler");
+        Assert.Contains(items, i => i.Command == "/stats" && i.Handler == "StatsAliasCommandHandler");
+        Assert.Contains(items, i => i.Command == "/suspicious" && i.Handler == "SuspiciousCommandHandler");
+        Assert.Contains(items, i => i.Command == "/spam" && i.Handler == "SpamCommandHandler");
+        Assert.Contains(items, i => i.Command == "/ham" && i.Handler == "HamCommandHandler");
+        Assert.Contains(items, i => i.Command == "/say" && i.Handler == "SayCommandHandler");
+        Assert.Contains(items, i => i.Command == "/check" && i.Handler == "CheckCommandHandler");
+        // Ensure duplicates are only by (command, handler) pair: both stats handlers present plus original StatsHandler
+        var statsHandlers = items.Where(i => i.Command == "/stats").Select(i => i.Handler).ToHashSet(StringComparer.Ordinal);
+        Assert.True(statsHandlers.Contains("StatsHandler"));
+        Assert.True(statsHandlers.Contains("StatsCommandHandler"));
+        Assert.True(statsHandlers.Contains("StatsAliasCommandHandler"));
     }
 }
 

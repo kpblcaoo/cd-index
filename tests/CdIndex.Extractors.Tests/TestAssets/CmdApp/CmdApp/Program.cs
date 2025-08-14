@@ -13,6 +13,10 @@ public class Program {
     var router = new object();
     router.Map("/start", new StartHandler());
     router.Register<StatsHandler>("/stats");
+  // constant-based registration
+  router.Map(CommandConstants.Start, new StartHandler()); // duplicate intentional for dedup
+  var ping = new PingHandler();
+  router.Add(CommandConstants.Ping, ping);
     var text = "/ignored"; // noise
     if (text == "/help") { }
     if (text.Equals("/about")) { }
