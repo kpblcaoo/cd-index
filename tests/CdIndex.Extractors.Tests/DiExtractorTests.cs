@@ -220,3 +220,28 @@ public sealed class CommandsExtractorTests
         Assert.Equal(sorted.Select(x => x.Command+"|"+x.Handler), items.Select(x => x.Command+"|"+x.Handler));
     }
 }
+
+public sealed class FlowExtractorTests
+{
+    private static string TestRepoRoot => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestAssets"));
+    private static string SlnPath => Path.Combine(TestRepoRoot, "FlowApp", "FlowApp.sln");
+
+    [Fact]
+    public async Task FlowExtractor_ExtractsExpectedSequence()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new FlowExtractor("MessageHandler", "HandleAsync");
+        extractor.Extract(ctx);
+        var nodes = extractor.Nodes;
+        Assert.True(nodes.Count >= 6, "Expected at least 6 nodes");
+    string[] expectedKinds = { "guard", "guard", "delegate", "guard", "delegate", "delegate" };
+    string[] expectedDetailsStarts = { "IsWhitelisted()", "IsDisabled()", "Router.Handle", "IsPrivate()", "JoinFacade.Handle", "ModerationService.Check" };
+    for (int i = 0; i < expectedKinds.Length; i++)
+        {
+            Assert.Equal(expectedKinds[i], nodes[i].Kind);
+            Assert.StartsWith(expectedDetailsStarts[i], nodes[i].Detail);
+            Assert.True(nodes[i].Order == i);
+            Assert.False(System.IO.Path.IsPathRooted(nodes[i].File));
+        }
+    }
+}

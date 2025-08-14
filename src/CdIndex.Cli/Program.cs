@@ -24,7 +24,10 @@ Options:
     --scan-configs / --no-scan-configs  Enable/disable configs extraction (default off)
     --env-prefix <P>        Add environment variable prefix filter (repeatable, default DOORMAN_)
         --scan-commands / --no-scan-commands  Enable/disable commands extraction (default off)
-  --verbose               Verbose diagnostics to stderr
+        --scan-flow / --no-scan-flow        Enable/disable message flow extraction (default off)
+        --flow-handler <TypeName>           Handler class name for flow (required if --scan-flow)
+        --flow-method <MethodName>          Handler method name for flow (default HandleAsync)
+    --verbose               Verbose diagnostics to stderr
   -h, --help              Show this help
 ";
 
@@ -72,7 +75,8 @@ Options:
             var exts = new List<string>();
             var ignores = new List<string>();
             var locMode = "physical";
-            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, verbose = false;
+            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
+            string? flowHandler = null; string flowMethod = "HandleAsync";
             var envPrefixes = new List<string>();
             for (int i = 1; i < args.Length; i++)
             {
@@ -97,6 +101,10 @@ Options:
                     case "--env-prefix": if (i + 1 < args.Length) envPrefixes.Add(args[++i]); else return 5; break;
                     case "--scan-commands": scanCommands = true; break;
                     case "--no-scan-commands": scanCommands = false; break;
+                    case "--scan-flow": scanFlow = true; break;
+                    case "--no-scan-flow": scanFlow = false; break;
+                    case "--flow-handler": if (i + 1 < args.Length) flowHandler = args[++i]; else return 5; break;
+                    case "--flow-method": if (i + 1 < args.Length) flowMethod = args[++i]; else return 5; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -120,6 +128,9 @@ Options:
                 scanConfigs,
                 envPrefixes,
                 scanCommands,
+                scanFlow,
+                flowHandler,
+                flowMethod,
                 verbose);
             return code;
         }
