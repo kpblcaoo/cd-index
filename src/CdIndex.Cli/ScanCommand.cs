@@ -11,7 +11,9 @@ namespace CdIndex.Cli;
 
 internal static class ScanCommand
 {
-    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode, bool scanTree, bool scanDi, bool scanEntrypoints, bool verbose)
+    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode,
+        bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool scanCommands,
+        bool scanFlow, string? flowHandler, string flowMethod, bool verbose)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -82,7 +84,7 @@ internal static class ScanCommand
             }
         }
 
-        var entrySections = new List<EntrypointsSection>();
+    var entrySections = new List<EntrypointsSection>();
         if (scanEntrypoints)
         {
             try
@@ -100,16 +102,66 @@ internal static class ScanCommand
         }
 
         // Determinism ordering pass via emitter (emitter re-sorts), but ensure empty lists created when disabled
+        var configSections = new List<ConfigSection>();
+        if (scanConfigs)
+        {
+            try
+            {
+                var cfgExtractor = new ConfigExtractor(envPrefixes.Count > 0 ? envPrefixes : null);
+                cfgExtractor.Extract(roslyn);
+                configSections.Add(cfgExtractor.CreateSection());
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: Configs extraction failed: " + ex.Message);
+            }
+        }
+
+        var commandSections = new List<CommandSection>();
+        if (scanCommands)
+        {
+            try
+            {
+                var cmdExtractor = new CommandsExtractor();
+                cmdExtractor.Extract(roslyn);
+                commandSections.Add(new CommandSection(cmdExtractor.Items.ToList()));
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: Commands extraction failed: " + ex.Message);
+            }
+        }
+
+        var flowSections = new List<MessageFlowSection>();
+        if (scanFlow)
+        {
+            if (string.IsNullOrWhiteSpace(flowHandler))
+            {
+                Console.Error.WriteLine("ERROR: --flow-handler required when --scan-flow is specified");
+                return 5;
+            }
+            try
+            {
+                var flowExtractor = new FlowExtractor(flowHandler!, flowMethod);
+                flowExtractor.Extract(roslyn);
+                flowSections.Add(new MessageFlowSection(flowExtractor.Nodes.ToList()));
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: Flow extraction failed: " + ex.Message);
+            }
+        }
+
         var index = new ProjectIndex(
             meta,
             projectSections,
             treeSections,
             scanDi ? new[] { diSection } : Array.Empty<DISection>(),
             entrySections,
-            Array.Empty<MessageFlowSection>(),
+            flowSections,
             Array.Empty<CallgraphSection>(),
-            Array.Empty<ConfigSection>(),
-            Array.Empty<CommandSection>(),
+            configSections,
+            commandSections,
             Array.Empty<TestSection>()
         );
 

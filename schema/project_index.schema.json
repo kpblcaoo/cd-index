@@ -204,7 +204,29 @@
     },
     "MessageFlow": {
       "type": "array",
-      "description": "Message flow analysis (future extension)"
+      "description": "Message flow analysis",
+      "items": {
+        "type": "object",
+        "required": ["Nodes"],
+        "properties": {
+          "Nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["Order", "Kind", "Detail", "File", "Line"],
+              "properties": {
+                "Order": { "type": "integer", "minimum": 0 },
+                "Kind": { "type": "string", "enum": ["guard", "delegate", "return", "other" ] },
+                "Detail": { "type": "string" },
+                "File": { "type": "string" },
+                "Line": { "type": "integer", "minimum": 1 }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "Callgraphs": {
       "type": "array",
@@ -212,11 +234,49 @@
     },
     "Configs": {
       "type": "array",
-      "description": "Configuration analysis (future extension)"
+      "description": "Configuration analysis",
+      "items": {
+        "type": "object",
+        "required": ["EnvKeys", "AppProps"],
+        "properties": {
+          "EnvKeys": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Sorted unique environment variable keys discovered"
+          },
+          "AppProps": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Sorted unique application config properties in form Type.Property"
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "Commands": {
       "type": "array",
-      "description": "Command analysis (future extension)"
+      "description": "Command analysis",
+      "items": {
+        "type": "object",
+        "required": ["Items"],
+        "properties": {
+          "Items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["Command", "File", "Line"],
+              "properties": {
+                "Command": { "type": "string", "description": "Chat command text incl. leading slash" },
+                "Handler": { "type": ["string", "null"], "description": "Resolved handler type/name if any" },
+                "File": { "type": "string", "description": "Repo-relative file path" },
+                "Line": { "type": "integer", "minimum": 1, "description": "Line number (1-based)" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "Tests": {
       "type": "array",

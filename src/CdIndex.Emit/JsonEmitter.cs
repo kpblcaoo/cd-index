@@ -88,6 +88,14 @@ public static class JsonEmitter
                 if (n != 0) return n;
                 return string.Compare(a.Project.File, b.Project.File, StringComparison.Ordinal);
             }));
+
+        // Order Config sections (each contains sorted lists already, but ensure deterministic ordering if multiple later)
+        var orderedConfigs = Orderer.Sort(
+            index.Configs.Select(c => new ConfigSection(
+                c.EnvKeys.OrderBy(x => x, StringComparer.Ordinal).ToList(),
+                c.AppProps.OrderBy(x => x, StringComparer.Ordinal).ToList()
+            )),
+            Comparer<ConfigSection>.Create((_, _) => 0));
         // Force Meta.SchemaVersion to 1.1 (immutability -> create new Meta)
         var meta = new Meta(index.Meta.Version, "1.1", index.Meta.GeneratedAt, index.Meta.RepositoryUrl);
 
@@ -99,7 +107,7 @@ public static class JsonEmitter
             orderedEntrypoints,
             index.MessageFlow,
             index.Callgraphs,
-            index.Configs,
+            orderedConfigs,
             index.Commands,
             index.Tests
         );

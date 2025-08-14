@@ -9,20 +9,26 @@ class Program
 {
     static int Main(string[] args)
     {
-    const string ScanUsage = @"Usage: cd-index scan (--sln <file.sln> | --csproj <project.csproj>) [options]
+        const string ScanUsage = @"Usage: cd-index scan (--sln <file.sln> | --csproj <project.csproj>) [options]
 
 Options:
-  --sln <path>              Path to solution file (mutually exclusive with --csproj)
-  --csproj <path>           Path to project file (mutually exclusive with --sln)
-  --out <file>              Write JSON to file (default stdout)
-  --ext <extension>         Additional file extension to include (repeatable)
-  --ignore <glob|prefix>    Path prefix or suffix to ignore (repeatable)
-  --loc-mode <physical|logical>  LOC counting mode (default physical)
-  --scan-tree / --no-scan-tree            Enable/disable tree section (default on)
-  --scan-di / --no-scan-di                Enable/disable DI extraction (default on)
-  --scan-entrypoints / --no-scan-entrypoints  Enable/disable entrypoints (default on)
-  --verbose               Verbose diagnostics to stderr
-  -h, --help              Show this help
+    --sln <path>                     Path to solution file (mutually exclusive with --csproj)
+    --csproj <path>                  Path to project file (mutually exclusive with --sln)
+    --out <file>                     Write JSON to file (default stdout)
+    --ext <extension>                Additional file extension to include (repeatable)
+    --ignore <glob|prefix>           Path prefix or suffix to ignore (repeatable)
+    --loc-mode <physical|logical>    LOC counting mode (default physical)
+    --scan-tree / --no-scan-tree     Enable/disable tree section (default on)
+    --scan-di / --no-scan-di         Enable/disable DI extraction (default on)
+    --scan-entrypoints / --no-scan-entrypoints  Enable/disable entrypoints (default on)
+    --scan-configs / --no-scan-configs          Enable/disable configs extraction (default off)
+    --env-prefix <P>                 Add environment variable prefix filter (repeatable, default DOORMAN_)
+    --scan-commands / --no-scan-commands        Enable/disable commands extraction (default off)
+    --scan-flow / --no-scan-flow     Enable/disable message flow extraction (default off)
+    --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
+    --flow-method <MethodName>       Handler method name for flow (default HandleAsync)
+    --verbose                        Verbose diagnostics to stderr
+    -h, --help                       Show this help
 ";
 
     bool IsHelp(string a) => a == "--help" || a == "-h" || a == "help";
@@ -69,7 +75,9 @@ Options:
             var exts = new List<string>();
             var ignores = new List<string>();
             var locMode = "physical";
-            bool scanTree = true, scanDi = true, scanEntrypoints = true, verbose = false;
+            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
+            string? flowHandler = null; string flowMethod = "HandleAsync";
+            var envPrefixes = new List<string>();
             for (int i = 1; i < args.Length; i++)
             {
                 var a = args[i];
@@ -88,6 +96,15 @@ Options:
                     case "--no-scan-di": scanDi = false; break;
                     case "--no-scan-entrypoints": scanEntrypoints = false; break;
                     case "--verbose": verbose = true; break;
+                    case "--scan-configs": scanConfigs = true; break;
+                    case "--no-scan-configs": scanConfigs = false; break;
+                    case "--env-prefix": if (i + 1 < args.Length) envPrefixes.Add(args[++i]); else return 5; break;
+                    case "--scan-commands": scanCommands = true; break;
+                    case "--no-scan-commands": scanCommands = false; break;
+                    case "--scan-flow": scanFlow = true; break;
+                    case "--no-scan-flow": scanFlow = false; break;
+                    case "--flow-handler": if (i + 1 < args.Length) flowHandler = args[++i]; else return 5; break;
+                    case "--flow-method": if (i + 1 < args.Length) flowMethod = args[++i]; else return 5; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -108,16 +125,22 @@ Options:
                 scanTree,
                 scanDi,
                 scanEntrypoints,
+                scanConfigs,
+                envPrefixes,
+                scanCommands,
+                scanFlow,
+                flowHandler,
+                flowMethod,
                 verbose);
             return code;
         }
 
-        var parseResult = rootCommand.Parse(args);
-        if (parseResult.GetValue(versionOption))
+        if (args.Contains("--version", StringComparer.Ordinal))
         {
             Console.WriteLine("cd-index v0.0.1-dev");
             return 0;
         }
+        var parseResult = rootCommand.Parse(args);
         if (parseResult.GetValue(selfCheckOption))
         {
             var scanTreeOnly = parseResult.GetValue(scanTreeOnlyOption);
