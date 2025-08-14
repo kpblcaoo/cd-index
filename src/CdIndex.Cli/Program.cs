@@ -24,6 +24,11 @@ Options:
     --scan-configs / --no-scan-configs          Enable/disable configs extraction (default off)
     --env-prefix <P>                 Add environment variable prefix filter (repeatable, default DOORMAN_)
     --scan-commands / --no-scan-commands        Enable/disable commands extraction (default off)
+    --commands-router-names <names>             Comma/space separated router method names (default Map,Register,Add,On,Route,Bind)
+    --commands-attr-names <names>               Comma/space separated attribute names for command discovery (default Command,Commands)
+    --commands-normalize <rules>                Comma/space list: trim,ensure-slash (default trim,ensure-slash)
+    --commands-dedup <mode>                     case-sensitive|case-insensitive (default case-sensitive)
+    --commands-conflicts <mode>                 warn|error|ignore (default warn)
     --scan-flow / --no-scan-flow     Enable/disable message flow extraction (default off)
     --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
     --flow-method <MethodName>       Handler method name for flow (default HandleAsync)
@@ -78,6 +83,11 @@ Options:
             bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
             string? flowHandler = null; string flowMethod = "HandleAsync";
             var envPrefixes = new List<string>();
+            var commandRouterNames = new List<string>();
+            var commandAttrNames = new List<string>();
+            var commandNormalize = new List<string>();
+            string? commandDedup = null;
+            string? commandConflicts = null;
             for (int i = 1; i < args.Length; i++)
             {
                 var a = args[i];
@@ -101,6 +111,22 @@ Options:
                     case "--env-prefix": if (i + 1 < args.Length) envPrefixes.Add(args[++i]); else return 5; break;
                     case "--scan-commands": scanCommands = true; break;
                     case "--no-scan-commands": scanCommands = false; break;
+                    case "--commands-router-names":
+                        // collect following tokens until next -- or end? Simpler: single space-separated list in next arg
+                        if (i + 1 < args.Length) commandRouterNames.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5;
+                        break;
+                    case "--commands-attr-names":
+                        if (i + 1 < args.Length) commandAttrNames.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5;
+                        break;
+                    case "--commands-normalize":
+                        if (i + 1 < args.Length) commandNormalize.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5;
+                        break;
+                    case "--commands-dedup":
+                        if (i + 1 < args.Length) commandDedup = args[++i]; else return 5;
+                        break;
+                    case "--commands-conflicts":
+                        if (i + 1 < args.Length) commandConflicts = args[++i]; else return 5;
+                        break;
                     case "--scan-flow": scanFlow = true; break;
                     case "--no-scan-flow": scanFlow = false; break;
                     case "--flow-handler": if (i + 1 < args.Length) flowHandler = args[++i]; else return 5; break;
@@ -131,7 +157,12 @@ Options:
                 scanFlow,
                 flowHandler,
                 flowMethod,
-                verbose);
+                verbose,
+                commandRouterNames,
+                commandAttrNames,
+                commandNormalize,
+                commandDedup,
+                commandConflicts);
             return code;
         }
 

@@ -13,7 +13,9 @@ internal static class ScanCommand
 {
     public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode,
         bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool scanCommands,
-        bool scanFlow, string? flowHandler, string flowMethod, bool verbose)
+    bool scanFlow, string? flowHandler, string flowMethod, bool verbose, List<string>? commandRouterNames = null,
+    List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
+    string? commandConflicts = null)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -122,7 +124,9 @@ internal static class ScanCommand
         {
             try
             {
-                var cmdExtractor = new CommandsExtractor();
+                var cmdExtractor = new CommandsExtractor(
+                    commandRouterNames != null && commandRouterNames.Count > 0 ? commandRouterNames : null,
+                    commandAttrNames != null && commandAttrNames.Count > 0 ? commandAttrNames : null);
                 cmdExtractor.Extract(roslyn);
                 commandSections.Add(new CommandSection(cmdExtractor.Items.ToList()));
             }
