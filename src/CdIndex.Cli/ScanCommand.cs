@@ -210,13 +210,14 @@ internal static class ScanCommand
             }
             try
             {
-                var flowExtractor = new FlowExtractor(flowHandler!, flowMethod);
+                var flowExtractor = new FlowExtractor(flowHandler!, flowMethod, verbose, msg => Console.Error.WriteLine(msg));
                 flowExtractor.Extract(roslyn);
                 flowSections.Add(new MessageFlowSection(flowExtractor.Nodes.ToList()));
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("WARN: Flow extraction failed: " + ex.Message);
+                Console.Error.WriteLine((ex is InvalidOperationException ? "ERROR" : "WARN") + ": Flow extraction failed: " + ex.Message);
+                if (ex is InvalidOperationException) return 5;
             }
         }
 
