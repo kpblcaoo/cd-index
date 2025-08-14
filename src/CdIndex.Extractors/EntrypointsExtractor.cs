@@ -103,6 +103,14 @@ public sealed class EntrypointsExtractor : IExtractor
                 hostedDistinct
             ));
         }
+
+        // Deterministic ordering of sections (Project.Name then Project.File)
+        var ordered = _sections
+            .OrderBy(s => s.Project.Name, System.StringComparer.Ordinal)
+            .ThenBy(s => s.Project.File, System.StringComparer.Ordinal)
+            .ToList();
+        _sections.Clear();
+        _sections.AddRange(ordered);
     }
 
     private static ProgramMain? TryFindProgramMain(CSharpSyntaxNode root, SemanticModel semantic, RoslynContext ctx)
@@ -150,9 +158,18 @@ public sealed class EntrypointsExtractor : IExtractor
             if (invocation.Expression is not MemberAccessExpressionSyntax ma) continue;
             if (ma.Name.Identifier.ValueText != "AddHostedService") continue;
             var symbol = semantic.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-            if (symbol == null || !symbol.IsGenericMethod || symbol.TypeArguments.Length != 1) continue;
+            string? typeName = null;
+            if (symbol != null && symbol.IsGenericMethod && symbol.TypeArguments.Length == 1)
+            {
+                typeName = symbol.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+            }
+            else if (invocation.Expression is MemberAccessExpressionSyntax mae && invocation.DescendantNodes().OfType<GenericNameSyntax>().FirstOrDefault() is GenericNameSyntax g && g.TypeArgumentList.Arguments.Count == 1)
+            {
+                // Fallback: syntactic generic AddHostedService<MyType>() when semantic failed
+                typeName = g.TypeArgumentList.Arguments[0].ToString();
+            }
+            if (typeName == null) continue;
             var (file, line) = LocationUtil.GetLocation(invocation, ctx);
-            var typeName = symbol.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
             target.Add(new HostedService(typeName, file, line));
         }
     }

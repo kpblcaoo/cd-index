@@ -15,8 +15,23 @@ public sealed class CommandsCliIntegrationTests
 
     private static (int code, string stdout, string stderr) RunCli(string args)
     {
-        var exe = Path.Combine(RepoRoot, "src", "CdIndex.Cli", "bin", "Debug", "net9.0", "CdIndex.Cli.dll");
-        if (!File.Exists(exe)) throw new FileNotFoundException("CLI build missing", exe);
+        // Determine current test build configuration (Debug/Release) from base path, fallback to any existing build
+        var config = new[] {"Debug", "Release"}.FirstOrDefault(c => AppContext.BaseDirectory.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries).Any(p => string.Equals(p, c, StringComparison.OrdinalIgnoreCase))) ?? "Debug";
+        var primary = Path.Combine(RepoRoot, "src", "CdIndex.Cli", "bin", config, "net9.0", "CdIndex.Cli.dll");
+        string? exe = null;
+        if (File.Exists(primary)) exe = primary;
+        else
+        {
+            var binRoot = Path.Combine(RepoRoot, "src", "CdIndex.Cli", "bin");
+            if (Directory.Exists(binRoot))
+            {
+                exe = Directory.GetFiles(binRoot, "CdIndex.Cli.dll", SearchOption.AllDirectories)
+                    .OrderByDescending(p => p.Contains("Release", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(p => p.Length)
+                    .FirstOrDefault();
+            }
+        }
+        if (exe == null || !File.Exists(exe)) throw new FileNotFoundException("CLI build missing", primary);
         var psi = new ProcessStartInfo("dotnet", $"{exe} scan --sln {SlnPath} --scan-commands {args}")
         {
             RedirectStandardError = true,
