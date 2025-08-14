@@ -11,6 +11,12 @@ public sealed class DiExtractor : IExtractor
 {
     private readonly List<DiRegistration> _registrations = new();
     private readonly List<HostedService> _hostedServices = new();
+    private readonly bool _dedupe;
+
+    public DiExtractor(bool diDedupe = false)
+    {
+        _dedupe = diDedupe;
+    }
 
     public IReadOnlyList<DiRegistration> Registrations => _registrations;
     public IReadOnlyList<HostedService> HostedServices => _hostedServices;
@@ -20,7 +26,7 @@ public sealed class DiExtractor : IExtractor
         _registrations.Clear();
         _hostedServices.Clear();
 
-        foreach (var project in context.Solution.Projects)
+    foreach (var project in context.Solution.Projects)
         {
             foreach (var document in project.Documents)
             {
@@ -40,6 +46,20 @@ public sealed class DiExtractor : IExtractor
             }
         }
 
+        // Optional dedupe (keep first occurrence by Interface+Implementation+Lifetime)
+        if (_dedupe)
+        {
+            var seen = new HashSet<(string, string, string)>();
+            var filtered = new List<DiRegistration>(_registrations.Count);
+            foreach (var r in _registrations)
+            {
+                var key = (r.Interface, r.Implementation, r.Lifetime);
+                if (seen.Add(key)) filtered.Add(r);
+            }
+            _registrations.Clear();
+            _registrations.AddRange(filtered);
+        }
+
         // Sort results deterministically
         _registrations.Sort((a, b) =>
         {
@@ -55,7 +75,7 @@ public sealed class DiExtractor : IExtractor
             return a.Line.CompareTo(b.Line);
         });
 
-        _hostedServices.Sort((a, b) =>
+    _hostedServices.Sort((a, b) =>
         {
             var typeCompare = StringComparer.Ordinal.Compare(a.Type, b.Type);
             if (typeCompare != 0) return typeCompare;
@@ -112,13 +132,15 @@ public sealed class DiExtractor : IExtractor
                 var lifetime = GetLifetime(methodName);
                 if (typeArgs.Count == 2)
                 {
-                    _registrations.Add(new DiRegistration(typeArgs[0].ToString(), typeArgs[1].ToString(), lifetime, file, line));
+                    if (!IsExceptionType(typeArgs[1].ToString()))
+                        _registrations.Add(new DiRegistration(typeArgs[0].ToString(), typeArgs[1].ToString(), lifetime, file, line));
                 }
                 else if (typeArgs.Count == 1)
                 {
                     // Factory or self-binding
                     var impl = HasFactoryParameter(invocation) ? (TryExtractFactoryType(invocation) ?? "(factory)") : typeArgs[0].ToString();
-                    _registrations.Add(new DiRegistration(typeArgs[0].ToString(), impl, lifetime, file, line));
+                    if (!IsExceptionType(impl))
+                        _registrations.Add(new DiRegistration(typeArgs[0].ToString(), impl, lifetime, file, line));
                 }
             }
         }
@@ -147,8 +169,8 @@ public sealed class DiExtractor : IExtractor
     {
         if (!method.IsGenericMethod || method.TypeArguments.Length != 1) return;
 
-        var hostedType = method.TypeArguments[0];
-        var typeName = GetTypeName(hostedType);
+    var hostedType = method.TypeArguments[0];
+    var typeName = hostedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
 
         _hostedServices.Add(new HostedService(typeName, file, line));
     }
@@ -174,26 +196,29 @@ public sealed class DiExtractor : IExtractor
         if (typeArgs.Length == 2)
         {
             // AddSingleton<TInterface, TImplementation>()
-            var interfaceType = GetTypeName(typeArgs[0]);
-            var implementationType = GetTypeName(typeArgs[1]);
+            var interfaceType = typeArgs[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+            var implementationType = typeArgs[1].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
             
-            _registrations.Add(new DiRegistration(interfaceType, implementationType, lifetime, file, line));
+            if (!IsExceptionSymbol(method.TypeArguments[1]))
+                _registrations.Add(new DiRegistration(interfaceType, implementationType, lifetime, file, line));
         }
         else if (typeArgs.Length == 1)
         {
-            var serviceType = GetTypeName(typeArgs[0]);
+            var serviceType = typeArgs[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
             
             // Check if this is a factory registration
             if (HasFactoryParameter(invocation))
             {
                 // AddSingleton<TInterface>(sp => new TImpl(...))
                 var implementationType = TryExtractFactoryType(invocation) ?? "(factory)";
-                _registrations.Add(new DiRegistration(serviceType, implementationType, lifetime, file, line));
+                if (!IsExceptionType(implementationType))
+                    _registrations.Add(new DiRegistration(serviceType, implementationType, lifetime, file, line));
             }
             else
             {
                 // AddSingleton<TImplementation>() - self-binding
-                _registrations.Add(new DiRegistration(serviceType, serviceType, lifetime, file, line));
+                if (!IsExceptionType(serviceType))
+                    _registrations.Add(new DiRegistration(serviceType, serviceType, lifetime, file, line));
             }
         }
     }
@@ -253,8 +278,24 @@ public sealed class DiExtractor : IExtractor
         };
     }
 
-    private static string GetTypeName(ITypeSymbol type)
+    // Removed GetTypeName indirection; using ToDisplayString directly.
+
+    private static bool IsExceptionType(string typeName)
     {
-        return type.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+        // Simple heuristic: ends with Exception OR contains ".Exception" or global qualified forms.
+        return typeName.EndsWith("Exception", StringComparison.Ordinal);
+    }
+
+    private static bool IsExceptionSymbol(ITypeSymbol symbol)
+    {
+        // Walk base types
+        var current = symbol;
+        while (current != null)
+        {
+            if (current.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat) == "System.Exception") return true;
+            if (current.Name == "Exception" && current.ContainingNamespace?.ToDisplayString() == "System") return true;
+            current = current.BaseType;
+        }
+        return false;
     }
 }

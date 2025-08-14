@@ -19,11 +19,12 @@ public sealed class CommandsExtractor : IExtractor
     private readonly bool _allowBare;
     private readonly Dictionary<string, List<CommandItem>> _canonicalGroups = new(StringComparer.Ordinal); // key: lower(command)
     private readonly List<CommandConflict> _conflicts = new();
+    private readonly bool _includeComparisons;
 
     public CommandsExtractor(IEnumerable<string>? routerNames = null, IEnumerable<string>? attrNames = null)
         : this(routerNames, attrNames, caseInsensitive: false, allowBare: false, normalizeTrim: true, normalizeEnsureSlash: true) { }
 
-    public CommandsExtractor(IEnumerable<string>? routerNames, IEnumerable<string>? attrNames, bool caseInsensitive, bool allowBare, bool normalizeTrim, bool normalizeEnsureSlash)
+    public CommandsExtractor(IEnumerable<string>? routerNames, IEnumerable<string>? attrNames, bool caseInsensitive, bool allowBare, bool normalizeTrim, bool normalizeEnsureSlash, bool includeComparisons = true)
     {
         _routerNames = new HashSet<string>((routerNames ?? new[] { "Map", "Register", "Add", "On", "Route", "Bind" }), StringComparer.Ordinal);
         _attrNames = new HashSet<string>((attrNames ?? new[] { "Command", "Commands" }).Select(a => a.EndsWith("Attribute", StringComparison.Ordinal) ? a[..^9] : a), StringComparer.Ordinal);
@@ -31,6 +32,7 @@ public sealed class CommandsExtractor : IExtractor
         _allowBare = allowBare || normalizeEnsureSlash; // we can accept bare if we'll add slash
         _normalizeTrim = normalizeTrim;
         _normalizeEnsureSlash = normalizeEnsureSlash;
+        _includeComparisons = includeComparisons;
     }
 
     public IReadOnlyList<CommandItem> Items => _items;
@@ -53,7 +55,8 @@ public sealed class CommandsExtractor : IExtractor
                 if (semantic == null) continue;
 
                 CollectRouterRegistrations(root, semantic, context);
-                CollectComparisons(root, semantic, context);
+                if (_includeComparisons)
+                    CollectComparisons(root, semantic, context);
                 CollectHandlerProperties(root, semantic, context); // pattern: property CommandName => "start"
                 CollectHandlerAttributes(root, semantic, context); // pattern: [Command("/start"), Commands("/a","/b")]
             }

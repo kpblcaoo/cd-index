@@ -1,40 +1,60 @@
 # Flow Extraction
 
-P1-B robustness improvements (#32).
+Robust symbol-based flow linearization (#32) capturing high-level guard & delegate sequence inside a handler method.
 
-Patterns (top-level only):
-- guard: any if(condition) ... (Detail = condition.ToString())
-- delegate: invocation where target expression ends with Facade / Service or equals Router (Detail = Type.Method)
-- return: top-level `return;` (not inside if blocks)
+## Node Kinds
+- guard: top-level `if (condition)` (and currently those that immediately `return` or `throw`) – Detail = source text of condition.
+- delegate: call whose target type name ends with one of configurable suffixes (default: `Router,Facade,Service,Dispatcher,Processor,Manager,Module`) or matches Router exactly; Detail = `Type.Method`.
 
-Supported method return types: void, Task, ValueTask. Async methods supported.
+No explicit `return` nodes emitted (branch-ending guards implicitly represent early exits). Throw-only guards are currently still emitted as guard (subject to refinement).
 
-Type resolution:
-1. If fully-qualified name provided (contains '.'), attempt `GetTypeByMetadataName`.
-2. Fallback: collect all classes whose simple name matches last identifier; pick deterministically by fully-qualified name (ordinal smallest).
+## Supported Constructs
+Single linear pass over:
+- Top-level statements in method body (including expression-bodied methods)
+- Collapsed patterns: `if (cond) { Delegate.Call(); return; }` -> single delegate node (guard suppressed)
+- Switch sections: first qualifying delegate invocation inside each `case`
+- Local variable initializers invoking delegates
+- Awaited invocations (`await FooService.BarAsync()`) captured as delegates
+- Flattening one level of wrapping blocks: `try { ... }`, `using (...) { ... }`, extra `{}`
+- Limited loop scan (for/foreach/while): inspects first expression statements for delegates/guards (no deep iteration logic)
 
-Method resolution: name match + allowed return type. If multiple overloads, pick deterministically by full signature string ordinal.
+## Type & Method Resolution
+1. Fully-qualified handler name -> `GetTypeByMetadataName`.
+2. Otherwise gather all types with matching simple name and choose deterministically by fully-qualified metadata name (ordinal smallest) to guard against ambiguities.
+3. Method: match by name + allowed return type (`void`, `Task`, `ValueTask`, synchronous or async); pick deterministically if multiple overloads via full signature ordinal.
 
-Verbose (`--verbose`) emits:
+## Delegate Detection
+Semantic (Roslyn) symbol analysis of invocation target's containing type. If its simple name ends with any configured suffix (case-sensitive Ordinal) it's a delegate node. Provide custom list via `--flow-delegate-suffixes "Router,Facade,..."` (comma/space separated).
+
+## Determinism
+- Discovery order is stable: traversal order over syntax with deterministic ordering of ambiguous symbol groups.
+- File paths repo-relative, forward slashes.
+- Node `Order` field increments sequentially.
+
+## CLI Flags
+```
+--scan-flow
+--flow-handler <TypeName>
+--flow-method <MethodName> (default HandleAsync)
+--flow-delegate-suffixes <list> (override defaults)
+```
+
+## Verbose Diagnostics
+When `--verbose`:
 ```
 [flow] type: Namespace.MessageHandler
 [flow] method: Namespace.MessageHandler.HandleAsync()
-[flow] nodes: 6
+[flow] nodes: 13 (guards=10 delegates=3 returns=0)
 ```
-Or `0 nodes; nothing matched top-level patterns` when empty.
 
-Errors:
-- Missing type or method: tool exits with code 5 (usage error) and error message on stderr.
+## Error Modes
+- Missing handler type or method -> exit code 5 with error message.
 
-Determinism:
-- Node order preserved as encountered.
-- Type/method choice stable via ordinal sorting.
+## Current Limitations / Future Enhancements
+- Guard emission includes `if` blocks that end with `throw` (could classify separately or filter).
+- Only first delegate per switch case captured (others ignored for simplicity).
+- Loop scanning shallow (first-level statements only).
+- No capture of plain return nodes.
+- No configuration yet to emit raw condition text vs simplified string (potential `--flow-debug`).
 
-Limitations:
-- No descent into nested blocks beyond top-level of method body.
-- No expression-bodied method support yet.
-- Return statements inside if-blocks suppressed (guard already represents branch exit pattern).
-
-Future ideas:
-- Configurable delegate pattern suffixes.
-- Optional capture of returns inside guards.
+Planned refinements: optional throw node kind, guard filtering, deeper switch/loop coverage, debug dump of unclassified top-level statements.
