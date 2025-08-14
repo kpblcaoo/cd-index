@@ -8,7 +8,7 @@
   "properties": {
     "Meta": {
       "type": "object",
-      "required": ["GeneratedAt", "Version"],
+      "required": ["GeneratedAt", "Version", "SchemaVersion"],
       "properties": {
         "GeneratedAt": {
           "type": "string",
@@ -18,6 +18,11 @@
         "Version": {
           "type": "string",
           "description": "Version of the cd-index tool"
+        },
+        "SchemaVersion": {
+          "type": "string",
+          "const": "1.1",
+          "description": "Schema version (current: 1.1)"
         },
         "RepositoryUrl": {
           "type": ["string", "null"],
@@ -159,30 +164,36 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["Entrypoints"],
+        "required": ["Project", "ProgramMain", "HostedServices"],
         "properties": {
-          "Entrypoints": {
+          "Project": {
+            "type": "object",
+            "required": ["Name", "File"],
+            "properties": {
+              "Name": { "type": "string", "description": "Project name" },
+              "File": { "type": "string", "description": "Repo-relative path to project file" }
+            },
+            "additionalProperties": false
+          },
+          "ProgramMain": {
+            "type": ["object", "null"],
+            "required": ["File", "Line"],
+            "properties": {
+              "File": { "type": "string", "description": "Repo-relative file path" },
+              "Line": { "type": "integer", "minimum": 1, "description": "Line number (1-based)" },
+              "TypeName": { "type": ["string", "null"], "description": "Fully qualified type name of Program class" }
+            },
+            "additionalProperties": false
+          },
+          "HostedServices": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["Name", "Path", "Type"],
+              "required": ["Type", "File", "Line"],
               "properties": {
-                "Name": {
-                  "type": "string",
-                  "description": "Entrypoint name"
-                },
-                "Path": {
-                  "type": "string",
-                  "description": "Path to entrypoint"
-                },
-                "Type": {
-                  "type": "string",
-                  "description": "Type of entrypoint"
-                },
-                "Description": {
-                  "type": ["string", "null"],
-                  "description": "Optional description"
-                }
+                "Type": { "type": "string", "description": "Hosted service type name" },
+                "File": { "type": "string", "description": "Repo-relative file path" },
+                "Line": { "type": "integer", "minimum": 1, "description": "Line number (1-based)" }
               },
               "additionalProperties": false
             }

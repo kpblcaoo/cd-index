@@ -25,11 +25,16 @@ class Program
         {
             Description = "Include DI extraction in selfcheck"
         };
+        var scanEntrypointsOption = new Option<bool>("--scan-entrypoints")
+        {
+            Description = "Include Entrypoints extraction (Program.Main + HostedServices)"
+        };
         var rootCommand = new RootCommand("cd-index CLI tool");
         rootCommand.Options.Add(versionOption);
         rootCommand.Options.Add(selfCheckOption);
         rootCommand.Options.Add(scanTreeOnlyOption);
         rootCommand.Options.Add(scanDiOption);
+        rootCommand.Options.Add(scanEntrypointsOption);
 
         var parseResult = rootCommand.Parse(args);
         if (parseResult.GetValue(versionOption))
@@ -41,7 +46,8 @@ class Program
         {
             var scanTreeOnly = parseResult.GetValue(scanTreeOnlyOption);
             var scanDi = parseResult.GetValue(scanDiOption);
-            EmitSelfCheck.Run(scanTreeOnly, scanDi);
+            var scanEntrypoints = parseResult.GetValue(scanEntrypointsOption);
+            EmitSelfCheck.Run(scanTreeOnly, scanDi, scanEntrypoints);
             return 0;
         }
         if (args.Length == 0 || parseResult.Errors.Count > 0)

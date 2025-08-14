@@ -10,57 +10,78 @@ namespace CdIndex.Cli;
 
 class EmitSelfCheck
 {
-    public static void Run(bool scanTreeOnly = false, bool scanDi = false)
+    public static void Run(bool scanTreeOnly = false, bool scanDi = false, bool scanEntrypoints = false)
     {
         var repoRoot = Directory.GetCurrentDirectory();
         var treeFiles = TreeScanner.Scan(repoRoot);
         var treeSection = new TreeSection(treeFiles.ToList());
 
-        // DI extraction if requested
-        DISection diSection;
-        if (scanDi && !scanTreeOnly)
+        // We may need to load the solution once if either DI or Entrypoints requested.
+        RoslynContext? sharedCtx = null;
+        List<DiRegistration> diRegistrations = new();
+        List<HostedService> diHostedServices = new();
+        List<EntrypointsSection> entrypointsSections = new();
+
+        if (!scanTreeOnly && (scanDi || scanEntrypoints))
         {
             try
             {
-                // Look for solution files
                 var slnFiles = Directory.GetFiles(repoRoot, "*.sln", SearchOption.AllDirectories)
                     .Where(f => !f.Contains("/bin/") && !f.Contains("/obj/"))
+                    .OrderBy(f => f, StringComparer.Ordinal)
                     .ToList();
-                
                 if (slnFiles.Count > 0)
                 {
                     MsBuildBootstrap.EnsureRegistered();
-                    var ctx = SolutionLoader.LoadSolutionAsync(slnFiles[0], repoRoot).Result;
-                    var diExtractor = new DiExtractor();
-                    diExtractor.Extract(ctx);
-                    diSection = new DISection(diExtractor.Registrations.ToList(), diExtractor.HostedServices.ToList());
-                }
-                else
-                {
-                    diSection = new DISection(new List<DiRegistration>(), new List<HostedService>());
+                    sharedCtx = SolutionLoader.LoadSolutionAsync(slnFiles[0], repoRoot).Result;
                 }
             }
             catch
             {
-                // Fallback to empty DI section if extraction fails
-                diSection = new DISection(new List<DiRegistration>(), new List<HostedService>());
+                // swallow; sharedCtx stays null
             }
         }
-        else
+
+        // DI extraction
+        DISection diSection;
+        if (scanDi && !scanTreeOnly && sharedCtx != null)
         {
-            diSection = new DISection(new List<DiRegistration>(), new List<HostedService>());
+            try
+            {
+                var diExtractor = new DiExtractor();
+                diExtractor.Extract(sharedCtx);
+                diRegistrations = diExtractor.Registrations.ToList();
+                diHostedServices = diExtractor.HostedServices.ToList();
+            }
+            catch { }
+        }
+        diSection = new DISection(diRegistrations, diHostedServices);
+
+        // Entrypoints extraction (with seeding if DI already scanned)
+        if (scanEntrypoints && !scanTreeOnly && sharedCtx != null)
+        {
+            try
+            {
+                var entryExtractor = new EntrypointsExtractor();
+                if (scanDi && diHostedServices.Count > 0)
+                    entryExtractor.SeedHostedServices(diHostedServices);
+                entryExtractor.Extract(sharedCtx);
+                entrypointsSections = entryExtractor.Sections.ToList();
+            }
+            catch { }
         }
 
         var index = new ProjectIndex(
-            new MetaSection(
-                "2025-01-01T00:00:00Z", // фиксированная дата для идемпотентности
+            new Meta(
                 "0.0.1-dev",
+                "1.1",
+                DateTime.Parse("2025-01-01T00:00:00Z", null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal),
                 null
             ),
             scanTreeOnly ? new List<ProjectSection>() : new List<ProjectSection>(),
             new List<TreeSection> { treeSection },
             scanTreeOnly ? new List<DISection>() : new List<DISection> { diSection },
-            scanTreeOnly ? new List<EntrypointSection>() : new List<EntrypointSection>(),
+            scanTreeOnly ? new List<EntrypointsSection>() : entrypointsSections,
             scanTreeOnly ? new List<MessageFlowSection>() : new List<MessageFlowSection>(),
             scanTreeOnly ? new List<CallgraphSection>() : new List<CallgraphSection>(),
             scanTreeOnly ? new List<ConfigSection>() : new List<ConfigSection>(),

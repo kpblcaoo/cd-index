@@ -50,6 +50,15 @@ public class SelfCheckDeterminismTests
         }
     }
 
+    [Fact]
+    public void SelfCheck_WithEntrypointsFlag_IncludesEntrypointsSection()
+    {
+        var exe = FindCliExe();
+        var tempDir = CreateTestRepoWithSlnAndProgram();
+        var output = RunCli(exe, tempDir, "--selfcheck --scan-entrypoints");
+        Assert.Contains("\"Entrypoints\":[", output);
+    }
+
     private static string FindCliExe()
     {
         // Предполагаем, что сборка уже выполнена
@@ -85,6 +94,19 @@ public class SelfCheckDeterminismTests
         File.WriteAllText(Path.Combine(root, "src", "feat.feature"), "feature\n");
         File.WriteAllText(Path.Combine(root, "src", "conf.yaml"), "yaml\n");
         File.WriteAllText(Path.Combine(root, "src", "data.json"), "json\n");
+        return root;
+    }
+
+    private static string CreateTestRepoWithSlnAndProgram()
+    {
+        var root = CreateTestRepo();
+        // add simple C# project with Program.Main
+        var projDir = Path.Combine(root, "App");
+        Directory.CreateDirectory(projDir);
+        File.WriteAllText(Path.Combine(projDir, "Program.cs"), "public class Program { public static void Main(string[] args) { } }");
+        File.WriteAllText(Path.Combine(projDir, "App.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net9.0</TargetFramework></PropertyGroup></Project>");
+        // minimal solution referencing project not strictly needed for current extractor stub; placeholder file
+        File.WriteAllText(Path.Combine(root, "App.sln"), "\n");
         return root;
     }
 
