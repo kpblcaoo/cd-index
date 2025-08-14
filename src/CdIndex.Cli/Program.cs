@@ -119,7 +119,8 @@ Options:
                         }
                         else return 5; break;
                     case "--no-tree":
-                        sectionsRequested = new List<string> { "DI", "Entrypoints", "Configs", "Commands", "MessageFlow", "Callgraphs" };
+                        // Previous behavior enabled MessageFlow implicitly; now treat flow as explicit opt-in only.
+                        sectionsRequested = new List<string> { "DI", "Entrypoints", "Configs", "Commands", /* no MessageFlow */ "Callgraphs" };
                         break;
                     case "--loc-mode": if (i + 1 < args.Length) locMode = args[++i]; else return 5; break;
                     case "--scan-tree": scanTree = true; break; // defaults true
