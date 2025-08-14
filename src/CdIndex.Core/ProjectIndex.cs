@@ -2,11 +2,11 @@
 namespace CdIndex.Core;
 
 public sealed record ProjectIndex(
-    MetaSection Meta,
+    Meta Meta,
     IReadOnlyList<ProjectSection> Project,
     IReadOnlyList<TreeSection> Tree,
     IReadOnlyList<DISection> DI,
-    IReadOnlyList<EntrypointSection> Entrypoints,
+    IReadOnlyList<EntrypointsSection> Entrypoints,
     IReadOnlyList<MessageFlowSection> MessageFlow,
     IReadOnlyList<CallgraphSection> Callgraphs,
     IReadOnlyList<ConfigSection> Configs,
@@ -15,9 +15,10 @@ public sealed record ProjectIndex(
 );
 
 // Секции — сигнатуры пустые/минимальные
-public sealed record MetaSection(
-    string GeneratedAt,
+public sealed record Meta(
     string Version,
+    string SchemaVersion,
+    DateTime GeneratedAt,
     string? RepositoryUrl = null
 );
 
@@ -37,9 +38,14 @@ public sealed record DISection(
     IReadOnlyList<HostedService> HostedServices
 );
 
-public sealed record EntrypointSection(
-    IReadOnlyList<EntrypointEntry> Entrypoints
+public sealed record EntrypointsSection(
+    ProjectRef Project,
+    ProgramMain? ProgramMain,
+    IReadOnlyList<HostedService> HostedServices
 );
+
+public sealed record ProjectRef(string Name, string File);
+public sealed record ProgramMain(string File, int Line, string? TypeName);
 
 public sealed record MessageFlowSection;
 public sealed record CallgraphSection;
@@ -49,9 +55,4 @@ public sealed record TestSection;
 
 // Supporting types for P0 sections
 
-public sealed record EntrypointEntry(
-    string Name,
-    string Path,
-    string Type,
-    string? Description = null
-);
+// (Removed legacy EntrypointEntry/EntrypointSection in v1.1)
