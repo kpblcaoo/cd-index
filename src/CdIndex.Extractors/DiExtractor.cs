@@ -78,20 +78,53 @@ public sealed class DiExtractor : IExtractor
         if (!IsDiRegistrationMethod(methodName)) return;
 
         var symbolInfo = semanticModel.GetSymbolInfo(invocation);
-        if (symbolInfo.Symbol is not IMethodSymbol method) return;
-
-        // Check if method is from Microsoft.Extensions.DependencyInjection
-        if (!IsDependencyInjectionMethod(method)) return;
-
-        var (file, line) = LocationUtil.GetLocation(invocation, context);
-
-        if (methodName == "AddHostedService")
+        if (symbolInfo.Symbol is IMethodSymbol method && IsDependencyInjectionMethod(method))
         {
-            ProcessHostedService(invocation, method, file, line);
+            // Normal (fully bound) path
+            var (file, line) = LocationUtil.GetLocation(invocation, context);
+            if (methodName == "AddHostedService")
+            {
+                ProcessHostedService(invocation, method, file, line);
+            }
+            else
+            {
+                ProcessServiceRegistration(invocation, method, methodName, file, line);
+            }
+            return;
         }
-        else
+
+        // Fallback heuristic: symbol binding failed (e.g. NuGet restore not available in some CI context)
+        // but we still want to capture obvious DI registrations to keep cross-platform determinism.
+        // We rely purely on method name + generic arity + presence of factory lambda.
+        try
         {
-            ProcessServiceRegistration(invocation, method, methodName, file, line);
+            var (file, line) = LocationUtil.GetLocation(invocation, context);
+            if (invocation.Expression is MemberAccessExpressionSyntax ma && ma.Name is GenericNameSyntax gName)
+            {
+                var typeArgs = gName.TypeArgumentList.Arguments;
+                if (methodName == "AddHostedService" && typeArgs.Count == 1)
+                {
+                    var hostedType = typeArgs[0].ToString();
+                    _hostedServices.Add(new HostedService(hostedType, file, line));
+                    return;
+                }
+
+                var lifetime = GetLifetime(methodName);
+                if (typeArgs.Count == 2)
+                {
+                    _registrations.Add(new DiRegistration(typeArgs[0].ToString(), typeArgs[1].ToString(), lifetime, file, line));
+                }
+                else if (typeArgs.Count == 1)
+                {
+                    // Factory or self-binding
+                    var impl = HasFactoryParameter(invocation) ? (TryExtractFactoryType(invocation) ?? "(factory)") : typeArgs[0].ToString();
+                    _registrations.Add(new DiRegistration(typeArgs[0].ToString(), impl, lifetime, file, line));
+                }
+            }
+        }
+        catch
+        {
+            // Swallow – heuristic fallback should never make test fail catastrophically; absence will be caught by tests.
         }
     }
 
