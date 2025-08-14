@@ -9,6 +9,24 @@ class Program
 {
     static int Main(string[] args)
     {
+    const string ScanUsage = @"Usage: cd-index scan (--sln <file.sln> | --csproj <project.csproj>) [options]
+
+Options:
+  --sln <path>              Path to solution file (mutually exclusive with --csproj)
+  --csproj <path>           Path to project file (mutually exclusive with --sln)
+  --out <file>              Write JSON to file (default stdout)
+  --ext <extension>         Additional file extension to include (repeatable)
+  --ignore <glob|prefix>    Path prefix or suffix to ignore (repeatable)
+  --loc-mode <physical|logical>  LOC counting mode (default physical)
+  --scan-tree / --no-scan-tree            Enable/disable tree section (default on)
+  --scan-di / --no-scan-di                Enable/disable DI extraction (default on)
+  --scan-entrypoints / --no-scan-entrypoints  Enable/disable entrypoints (default on)
+  --verbose               Verbose diagnostics to stderr
+  -h, --help              Show this help
+";
+
+    bool IsHelp(string a) => a == "--help" || a == "-h" || a == "help";
+
         var versionOption = new Option<bool>("--version")
         {
             Description = "Show tool version and exit"
@@ -39,6 +57,12 @@ class Program
         // Manual 'scan' command handling (simpler & stable across System.CommandLine betas)
         if (args.Length > 0 && string.Equals(args[0], "scan", StringComparison.OrdinalIgnoreCase))
         {
+            // scan help
+            if (args.Length == 1 || args.Skip(1).Any(IsHelp))
+            {
+                Console.WriteLine(ScanUsage);
+                return 0;
+            }
             var slnPath = (string?)null;
             var csprojPath = (string?)null;
             FileInfo? outFile = null;
@@ -64,6 +88,11 @@ class Program
                     case "--no-scan-di": scanDi = false; break;
                     case "--no-scan-entrypoints": scanEntrypoints = false; break;
                     case "--verbose": verbose = true; break;
+                    case "--help":
+                    case "-h":
+                    case "help":
+                        Console.WriteLine(ScanUsage);
+                        return 0;
                     default:
                         Console.Error.WriteLine($"Unknown option for scan: {a}");
                         return 5;
@@ -97,9 +126,9 @@ class Program
             EmitSelfCheck.Run(scanTreeOnly, scanDi, scanEntrypoints);
             return 0;
         }
-        if (args.Length == 0 || parseResult.Errors.Count > 0)
+        if (args.Length == 0 || parseResult.Errors.Count > 0 || args.Any(IsHelp))
         {
-            Console.WriteLine("Use --help to see available commands.");
+            Console.WriteLine("cd-index - project index tool\n\nCommands:\n  scan    Scan solution/project and emit JSON index\n\nOptions:\n  --version         Show tool version and exit\n  --selfcheck       Emit deterministic self-check JSON\n  --scan-tree-only  Only include Tree in selfcheck\n  --scan-di         Include DI in selfcheck\n  --scan-entrypoints Include Entrypoints in selfcheck\n  -h, --help        Show help\n\nRun 'cd-index scan --help' for scan options.");
             foreach (var error in parseResult.Errors)
                 Console.Error.WriteLine(error.Message);
             return 1;

@@ -13,13 +13,13 @@ public static class TreeScanner
     private static readonly string[] DefaultExts = new[] { ".cs", ".csproj", ".sln", ".feature", ".json", ".yaml", ".yml" };
     private static readonly string[] DefaultIgnores = new[] { "bin/", "obj/", ".git/", "logs/", ".Designer.cs" };
 
-    public static IReadOnlyList<FileEntry> Scan(string repoRoot, IEnumerable<string>? includeExts = null, IEnumerable<string>? ignoreGlobs = null)
+    public static IReadOnlyList<FileEntry> Scan(string repoRoot, IEnumerable<string>? includeExts = null, IEnumerable<string>? ignoreGlobs = null, string locMode = "physical")
     {
         includeExts ??= DefaultExts;
         ignoreGlobs ??= DefaultIgnores;
         var files = Directory.EnumerateFiles(repoRoot, "*", SearchOption.AllDirectories)
             .Where(f => ShouldInclude(f, repoRoot, includeExts, ignoreGlobs));
-        var entries = files.Select(f => ScanFile(f, repoRoot)).ToList();
+    var entries = files.Select(f => ScanFile(f, repoRoot, locMode)).ToList();
         entries.Sort(ByPathComparer.Instance);
         return entries;
     }
@@ -40,11 +40,11 @@ public static class TreeScanner
         return exts.Any(ext => relPath.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static FileEntry ScanFile(string filePath, string repoRoot)
+    private static FileEntry ScanFile(string filePath, string repoRoot, string locMode)
     {
         var relPath = NormalizePath(Path.GetRelativePath(repoRoot, filePath));
         var kind = GetKind(relPath);
-        var (sha, loc) = GetShaAndLoc(filePath);
+        var (sha, loc) = GetShaAndLoc(filePath, locMode);
         return new FileEntry(relPath, kind, loc, sha);
     }
 
@@ -56,7 +56,7 @@ public static class TreeScanner
         return ext.Length > 1 ? ext.Substring(1).ToLowerInvariant() : string.Empty;
     }
 
-    private static (string sha, int loc) GetShaAndLoc(string filePath)
+    private static (string sha, int loc) GetShaAndLoc(string filePath, string locMode)
     {
         const int maxTries = 3;
         for (int attempt = 1; ; attempt++)
@@ -73,6 +73,14 @@ public static class TreeScanner
                 {
                     buffer.Append(line);
                     buffer.Append('\n');
+                    if (string.Equals(locMode, "logical", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var trimmed = line.Trim();
+                        if (trimmed.Length == 0) continue; // skip empty
+                        if (trimmed.StartsWith("//")) continue; // skip single-line comment
+                        // naive detection of block comment lines
+                        if (trimmed.StartsWith("/*") || trimmed.StartsWith("* ") || trimmed.StartsWith("*/")) continue;
+                    }
                     loc++;
                 }
                 // Remove BOM if present

@@ -48,15 +48,22 @@ internal static class ScanCommand
         var meta = new Meta("1.0", "1.1", DateTime.UtcNow, null);
 
         // Project sections: minimal for now (one per project in solution)
+        var repoRootNorm = NormalizePath(repoRoot);
         var projectSections = roslyn.Solution.Projects
-            .Select(p => new ProjectSection(p.Name, NormalizePath(p.FilePath ?? string.Empty), null, p.Language))
+            .Select(p => {
+                var full = NormalizePath(p.FilePath ?? string.Empty);
+                var rel = full.StartsWith(repoRootNorm, StringComparison.OrdinalIgnoreCase)
+                    ? full.Substring(repoRootNorm.Length).TrimStart('/')
+                    : full;
+                return new ProjectSection(p.Name, rel, null, p.Language);
+            })
             .OrderBy(p => p.Name, StringComparer.Ordinal)
             .ToList();
 
         var treeSections = new List<TreeSection>();
         if (scanTree)
         {
-            var treeFiles = TreeScanner.Scan(repoRoot, exts.Length > 0 ? exts : null, ignores.Length > 0 ? ignores : null);
+            var treeFiles = TreeScanner.Scan(repoRoot, exts.Length > 0 ? exts : null, ignores.Length > 0 ? ignores : null, locMode);
             treeSections.Add(new TreeSection(treeFiles));
         }
 
