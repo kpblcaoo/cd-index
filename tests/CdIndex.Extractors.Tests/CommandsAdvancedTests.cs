@@ -38,4 +38,30 @@ public sealed class CommandsAdvancedTests
         var ordered = extractor.Conflicts.Select(c => c.CanonicalCommand).OrderBy(x => x, StringComparer.Ordinal).ToList();
         Assert.Equal(ordered, extractor.Conflicts.Select(c => c.CanonicalCommand).ToList());
     }
+
+    [Fact]
+    public async Task Attributes_And_ArrayCommands_Are_Collected()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new CommandsExtractor();
+        extractor.Extract(ctx);
+        var cmds = extractor.Items.Select(i => i.Command).ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("/multi1", cmds);
+        Assert.Contains("/Multi2", cmds);
+        Assert.Contains("/Alpha", cmds);
+        Assert.Contains("/beta", cmds);
+        Assert.Contains("/Gamma", cmds);
+    }
+
+    [Fact]
+    public async Task CaseInsensitiveConflict_Reported()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new CommandsExtractor(null, null, caseInsensitive:true, allowBare:false, normalizeTrim:true, normalizeEnsureSlash:true);
+        extractor.Extract(ctx);
+    Assert.Contains(extractor.Conflicts, c => c.CanonicalCommand == "/stats");
+    var statsConflict = extractor.Conflicts.First(c => c.CanonicalCommand == "/stats");
+        Assert.True(statsConflict.Variants.Any(v => v.Command == "/stats"));
+        Assert.True(statsConflict.Variants.Any(v => v.Command == "/STATS"));
+    }
 }

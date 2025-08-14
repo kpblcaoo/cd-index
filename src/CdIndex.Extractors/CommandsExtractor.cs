@@ -17,7 +17,7 @@ public sealed class CommandsExtractor : IExtractor
     private readonly bool _normalizeTrim;
     private readonly bool _normalizeEnsureSlash;
     private readonly bool _allowBare;
-    private readonly Dictionary<string, List<CommandItem>> _canonicalGroups = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<CommandItem>> _canonicalGroups = new(StringComparer.Ordinal); // key: lower(command)
     private readonly List<CommandConflict> _conflicts = new();
 
     public CommandsExtractor(IEnumerable<string>? routerNames = null, IEnumerable<string>? attrNames = null)
@@ -68,6 +68,34 @@ public sealed class CommandsExtractor : IExtractor
             if (c != 0) return c;
             return a.Line.CompareTo(b.Line);
         });
+        if (_caseInsensitive)
+        {
+            // Build groups by lower(command)
+            foreach (var item in _items)
+            {
+                var key = item.Command.ToLowerInvariant();
+                if (!_canonicalGroups.TryGetValue(key, out var list))
+                {
+                    list = new List<CommandItem>();
+                    _canonicalGroups[key] = list;
+                }
+                list.Add(item);
+            }
+            foreach (var kv in _canonicalGroups.OrderBy(k => k.Key, StringComparer.Ordinal))
+            {
+                var distinctForms = kv.Value.Select(v => v.Command).Distinct(StringComparer.Ordinal).ToList();
+                if (distinctForms.Count > 1)
+                {
+                    var variants = kv.Value
+                        .OrderBy(v => v.Command, StringComparer.Ordinal)
+                        .ThenBy(v => v.Handler, StringComparer.Ordinal)
+                        .ThenBy(v => v.File, StringComparer.Ordinal)
+                        .ThenBy(v => v.Line)
+                        .ToList();
+                    _conflicts.Add(new CommandConflict(kv.Key, variants));
+                }
+            }
+        }
     }
 
     private void CollectRouterRegistrations(CSharpSyntaxNode root, SemanticModel semantic, RoslynContext ctx)
@@ -348,7 +376,7 @@ public sealed class CommandsExtractor : IExtractor
         if (!_seen.Add((norm, handler))) return;
         var item = new CommandItem(norm, handler, file, line);
         _items.Add(item);
-        RecordCanonical(item);
+    // defer conflict grouping until end
     }
 
     private string? Normalize(string? raw)
@@ -362,26 +390,7 @@ public sealed class CommandsExtractor : IExtractor
         return s;
     }
 
-    private void RecordCanonical(CommandItem item)
-    {
-        if (!_caseInsensitive) return;
-        var key = item.Command.ToLowerInvariant() + "|" + (item.Handler ?? "");
-        if (!_canonicalGroups.TryGetValue(key, out var list))
-        {
-            list = new List<CommandItem>();
-            _canonicalGroups[key] = list;
-        }
-        if (!list.Any(c => c.Command == item.Command && c.Handler == item.Handler))
-        {
-            // detect variation purely by case on command
-            bool variant = list.Any(c => !c.Command.Equals(item.Command, StringComparison.Ordinal) && c.Command.Equals(item.Command, StringComparison.OrdinalIgnoreCase));
-            list.Add(item);
-            if (variant)
-            {
-                _conflicts.Add(new CommandConflict(item.Command.ToLowerInvariant(), list.ToList()));
-            }
-        }
-    }
+    private void RecordCanonical(CommandItem item) { /* deprecated path kept for compatibility; now grouping done post-sort */ }
 }
 
 public sealed record CommandConflict(string CanonicalCommand, IReadOnlyList<CommandItem> Variants);
