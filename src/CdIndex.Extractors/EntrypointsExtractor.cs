@@ -34,6 +34,34 @@ public sealed class EntrypointsExtractor : IExtractor
             ProgramMain? programMain = null;
             var hosted = _seedHosted.Select(h => new HostedService(h.Type, h.File, h.Line)).ToList();
 
+            // Detect top-level statements entry point first
+            try
+            {
+                var comp = project.GetCompilationAsync().Result;
+                var entry = comp?.GetEntryPoint(System.Threading.CancellationToken.None);
+                if (entry != null && entry.DeclaringSyntaxReferences.Length > 0)
+                {
+                    var syntaxRef = entry.DeclaringSyntaxReferences[0];
+                    var node = syntaxRef.GetSyntax() as CSharpSyntaxNode;
+                    var doc = project.Documents.FirstOrDefault(d => d.GetSyntaxRootAsync().Result == node?.SyntaxTree.GetRoot());
+                    // Fallback: map by path
+                    var filePath = syntaxRef.SyntaxTree?.FilePath;
+                    if (filePath != null)
+                    {
+                        var normalized = filePath.Replace("\\", "/");
+                        var repoRootNorm2 = context.RepoRoot.Replace("\\", "/");
+                        var relFile = normalized.StartsWith(repoRootNorm2, System.StringComparison.OrdinalIgnoreCase)
+                            ? normalized.Substring(repoRootNorm2.Length).TrimStart('/')
+                            : normalized;
+                        var (file, line) = LocationUtil.GetLocation(node ?? syntaxRef.GetSyntax(), context);
+                        // Type name might be synthesized (<Program>$) so only include if not compiler generated pattern
+                        var typeName = entry.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+                        programMain = new ProgramMain(file, line, typeName);
+                    }
+                }
+            }
+            catch { /* ignore and continue */ }
+
             var documents = project.Documents
                 .Where(d => d.FilePath != null && d.FilePath.EndsWith(".cs"))
                 .OrderBy(d => d.FilePath, System.StringComparer.Ordinal)

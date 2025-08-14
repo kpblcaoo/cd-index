@@ -45,7 +45,7 @@ public class SelfCheckDeterminismTests
                 var path = ExtractPath(line);
                 Assert.DoesNotContain("\\", path); // нет обратных слэшей
                 Assert.False(Path.IsPathRooted(path)); // repo-relative
-                Assert.True(path.Contains("/")); // есть прямой слэш
+                Assert.Contains("/", path); // есть прямой слэш
             }
         }
     }
@@ -59,10 +59,22 @@ public class SelfCheckDeterminismTests
         Assert.Contains("\"Entrypoints\":[", output);
     }
 
+    private static string RepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (!string.IsNullOrEmpty(dir))
+        {
+            if (File.Exists(Path.Combine(dir, "cd-index.sln"))) return dir;
+            var parent = Directory.GetParent(dir)?.FullName;
+            if (parent == null || parent == dir) break;
+            dir = parent;
+        }
+        throw new InvalidOperationException("Repo root not found");
+    }
+
     private static string FindCliExe()
     {
-        // Предполагаем, что сборка уже выполнена
-        var cliPath = Path.Combine(Directory.GetCurrentDirectory(), "src", "CdIndex.Cli", "bin", "Debug", "net9.0", "CdIndex.Cli.dll");
+        var cliPath = Path.Combine(RepoRoot(), "src", "CdIndex.Cli", "bin", "Debug", "net9.0", "CdIndex.Cli.dll");
         if (!File.Exists(cliPath)) throw new FileNotFoundException(cliPath);
         return cliPath;
     }
@@ -76,9 +88,9 @@ public class SelfCheckDeterminismTests
             RedirectStandardError = true,
             UseShellExecute = false
         };
-        using var proc = Process.Start(psi);
-        var output = proc.StandardOutput.ReadToEnd();
-        proc.WaitForExit();
+    using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start process");
+    var output = proc.StandardOutput.ReadToEnd();
+    proc.WaitForExit();
         return output;
     }
 
