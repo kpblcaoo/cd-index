@@ -69,12 +69,11 @@ ensure_json() {
 
 subcommand_summary() {
   jq -r '
-    def sum(l): reduce l[] as $x (0; . + $x);
-    def files: ( ( .Tree // [] ) | map( (.Files // []) | length ) | sum );
-    def diRegs: ( ( .DI // [] ) | map( (.Registrations // []) | length ) | sum );
-    def commands: ( ( .Commands // [] ) | map( (.Items // []) | length ) | sum );
-    def entrypoints: ( ( .Entrypoints // [] ) | length );
-    def flowNodes: ( ( .MessageFlow // [] ) | map( (.Nodes // []) | length ) | sum );
+    def files:       ([ .Tree[]?        .Files[]? ]       | length);
+    def diRegs:      ([ .DI[]?          .Registrations[]? ]| length);
+    def commands:    ([ .Commands[]?    .Items[]? ]        | length);
+    def entrypoints: ([ .Entrypoints[]? ]                  | length);
+    def flowNodes:   ([ .MessageFlow[]? .Nodes[]? ]        | length);
     "files=" + (files|tostring) +
     " di=" + (diRegs|tostring) +
     " commands=" + (commands|tostring) +
@@ -84,14 +83,14 @@ subcommand_summary() {
 }
 
 # Collect all files across Tree sections then list
-subcommand_files() { jq -r '( .Tree // [] ) | map(.Files[]) | .[] | "\(.Loc)\t\(.Path)"' "$1" | sort -n; }
-subcommand_top_files() { local n=${2:-20}; jq -r '( .Tree // [] ) | map(.Files[]) | .[] | sort_by(-.Loc)[0:'"$n"'][] | "\(.Loc)\t\(.Path)"' "$1"; }
-subcommand_di() { jq -r '( .DI // [] ) | map(.Registrations[]) | .[] | "\(.Interface) -> \(.Implementation) [\(.Lifetime)]"' "$1" | sort; }
-subcommand_commands() { jq -r '( .Commands // [] ) | map(.Items[]) | .[] | sort_by(.Command)[]? | "\(.Command): \(.Handler // "")"' "$1"; }
-subcommand_entrypoints() { jq -r '( .Entrypoints // [] )[] | "\(.Project.Name)\t\(.ProgramMain.File):\(.ProgramMain.Line)"' "$1" | sort; }
-subcommand_flow() { jq -r '( .MessageFlow // [] ) | map(.Nodes[]) | .[]? | sort_by(.Order)[]? | "\(.Order)\t\(.Kind)\t\(.Detail)\t\(.File):\(.Line)"' "$1"; }
-subcommand_flow_delegates() { jq -r '( .MessageFlow // [] ) | map(.Nodes[]) | .[]? | map(select(.Kind=="delegate")) | .[]? | sort_by(.Order)[]? | "\(.Order)\t\(.Detail)"' "$1"; }
-subcommand_sha() { jq -r '( .Tree // [] ) | map(.Files[]) | .[] | "\(.Sha256)\t\(.Path)"' "$1" | sort; }
+subcommand_files() { jq -r '[ .Tree[]? .Files[]? ] | sort_by(.Path) | .[] | "\(.Loc)\t\(.Path)"' "$1"; }
+subcommand_top_files() { local n=${2:-20}; jq -r '[ .Tree[]? .Files[]? ] | sort_by(-.Loc)[0:'"$n"'][] | "\(.Loc)\t\(.Path)"' "$1"; }
+subcommand_di() { jq -r '[ .DI[]? .Registrations[]? ] | sort_by(.Interface, .Implementation) | .[] | "\(.Interface) -> \(.Implementation) [\(.Lifetime)]"' "$1"; }
+subcommand_commands() { jq -r '[ .Commands[]? .Items[]? ] | sort_by(.Command) | .[] | "\(.Command): \(.Handler // "")"' "$1"; }
+subcommand_entrypoints() { jq -r '[ .Entrypoints[]? ] | sort_by(.Project.Name) | .[] | "\(.Project.Name)\t\(.ProgramMain.File):\(.ProgramMain.Line)"' "$1"; }
+subcommand_flow() { jq -r '[ .MessageFlow[]? .Nodes[]? ] | sort_by(.Order) | .[] | "\(.Order)\t\(.Kind)\t\(.Detail)\t\(.File):\(.Line)"' "$1"; }
+subcommand_flow_delegates() { jq -r '[ .MessageFlow[]? .Nodes[]? | select(.Kind=="delegate") ] | sort_by(.Order) | .[] | "\(.Order)\t\(.Detail)"' "$1"; }
+subcommand_sha() { jq -r '[ .Tree[]? .Files[]? ] | sort_by(.Path) | .[] | "\(.Sha256)\t\(.Path)"' "$1"; }
 subcommand_raw() { jq '.' "$1"; }
 subcommand_select() { shift 2; jq -r "$*" "$1"; }
 
