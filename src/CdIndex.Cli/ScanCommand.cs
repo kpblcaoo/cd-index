@@ -11,7 +11,7 @@ namespace CdIndex.Cli;
 
 internal static class ScanCommand
 {
-    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode, bool scanTree, bool scanDi, bool scanEntrypoints, bool verbose)
+    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode, bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool verbose)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -82,7 +82,7 @@ internal static class ScanCommand
             }
         }
 
-        var entrySections = new List<EntrypointsSection>();
+    var entrySections = new List<EntrypointsSection>();
         if (scanEntrypoints)
         {
             try
@@ -100,6 +100,21 @@ internal static class ScanCommand
         }
 
         // Determinism ordering pass via emitter (emitter re-sorts), but ensure empty lists created when disabled
+        var configSections = new List<ConfigSection>();
+        if (scanConfigs)
+        {
+            try
+            {
+                var cfgExtractor = new ConfigExtractor(envPrefixes.Count > 0 ? envPrefixes : null);
+                cfgExtractor.Extract(roslyn);
+                configSections.Add(cfgExtractor.CreateSection());
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: Configs extraction failed: " + ex.Message);
+            }
+        }
+
         var index = new ProjectIndex(
             meta,
             projectSections,
@@ -108,7 +123,7 @@ internal static class ScanCommand
             entrySections,
             Array.Empty<MessageFlowSection>(),
             Array.Empty<CallgraphSection>(),
-            Array.Empty<ConfigSection>(),
+            configSections,
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
         );

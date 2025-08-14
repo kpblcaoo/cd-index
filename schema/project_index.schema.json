@@ -212,7 +212,24 @@
     },
     "Configs": {
       "type": "array",
-      "description": "Configuration analysis (future extension)"
+      "description": "Configuration analysis",
+      "items": {
+        "type": "object",
+        "required": ["EnvKeys", "AppProps"],
+        "properties": {
+          "EnvKeys": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Sorted unique environment variable keys discovered"
+          },
+          "AppProps": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Sorted unique application config properties in form Type.Property"
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "Commands": {
       "type": "array",

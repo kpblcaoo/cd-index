@@ -21,6 +21,8 @@ Options:
   --scan-tree / --no-scan-tree            Enable/disable tree section (default on)
   --scan-di / --no-scan-di                Enable/disable DI extraction (default on)
   --scan-entrypoints / --no-scan-entrypoints  Enable/disable entrypoints (default on)
+    --scan-configs / --no-scan-configs  Enable/disable configs extraction (default off)
+    --env-prefix <P>        Add environment variable prefix filter (repeatable, default DOORMAN_)
   --verbose               Verbose diagnostics to stderr
   -h, --help              Show this help
 ";
@@ -69,7 +71,8 @@ Options:
             var exts = new List<string>();
             var ignores = new List<string>();
             var locMode = "physical";
-            bool scanTree = true, scanDi = true, scanEntrypoints = true, verbose = false;
+            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, verbose = false;
+            var envPrefixes = new List<string>();
             for (int i = 1; i < args.Length; i++)
             {
                 var a = args[i];
@@ -88,6 +91,9 @@ Options:
                     case "--no-scan-di": scanDi = false; break;
                     case "--no-scan-entrypoints": scanEntrypoints = false; break;
                     case "--verbose": verbose = true; break;
+                    case "--scan-configs": scanConfigs = true; break;
+                    case "--no-scan-configs": scanConfigs = false; break;
+                    case "--env-prefix": if (i + 1 < args.Length) envPrefixes.Add(args[++i]); else return 5; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -108,6 +114,8 @@ Options:
                 scanTree,
                 scanDi,
                 scanEntrypoints,
+                scanConfigs,
+                envPrefixes,
                 verbose);
             return code;
         }

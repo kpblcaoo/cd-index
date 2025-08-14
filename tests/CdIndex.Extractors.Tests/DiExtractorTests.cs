@@ -164,3 +164,36 @@ public sealed class DiExtractorTests
         Assert.True(docCount > 0, "No documents loaded from DiApp.sln. Check build and asset paths.");
     }
 }
+
+public sealed class ConfigExtractorTests
+{
+    private static string TestRepoRoot => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestAssets"));
+    private static string SlnPath => Path.Combine(TestRepoRoot, "ConfApp", "ConfApp.sln");
+
+    [Fact]
+    public async Task ConfigExtractor_FindsEnvKeysAndAppProps()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new ConfigExtractor();
+        extractor.Extract(ctx);
+        var section = extractor.CreateSection();
+        Assert.Contains("DOORMAN_BOT_API", section.EnvKeys);
+        Assert.Contains("DOORMAN_LOG_ADMIN_CHAT", section.EnvKeys);
+        Assert.Contains("IAppConfig.AdminChatId", section.AppProps);
+        Assert.Contains("IAppConfig.AiEnabled", section.AppProps);
+        Assert.Contains("FeatureConfig.FeatureX", section.AppProps);
+        // Sorted uniqueness
+        var sortedEnv = section.EnvKeys.OrderBy(x => x, StringComparer.Ordinal).ToList();
+        Assert.Equal(sortedEnv, section.EnvKeys.ToList());
+    }
+
+    [Fact]
+    public async Task ConfigExtractor_CustomPrefix()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new ConfigExtractor(new[]{"DOORMAN_", "MYAPP_"});
+        extractor.Extract(ctx);
+        var section = extractor.CreateSection();
+        Assert.Contains("DOORMAN_BOT_API", section.EnvKeys);
+    }
+}

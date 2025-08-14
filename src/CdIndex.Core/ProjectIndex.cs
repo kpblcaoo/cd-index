@@ -49,7 +49,10 @@ public sealed record ProgramMain(string File, int Line, string? TypeName);
 
 public sealed record MessageFlowSection;
 public sealed record CallgraphSection;
-public sealed record ConfigSection;
+public sealed record ConfigSection(
+    IReadOnlyList<string> EnvKeys,
+    IReadOnlyList<string> AppProps
+);
 public sealed record CommandSection;
 public sealed record TestSection;
 
