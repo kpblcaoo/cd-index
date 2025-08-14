@@ -11,7 +11,7 @@ namespace CdIndex.Cli;
 
 internal static class ScanCommand
 {
-    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode, bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool verbose)
+    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode, bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool scanCommands, bool verbose)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -115,6 +115,21 @@ internal static class ScanCommand
             }
         }
 
+        var commandSections = new List<CommandSection>();
+        if (scanCommands)
+        {
+            try
+            {
+                var cmdExtractor = new CommandsExtractor();
+                cmdExtractor.Extract(roslyn);
+                commandSections.Add(new CommandSection(cmdExtractor.Items.ToList()));
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: Commands extraction failed: " + ex.Message);
+            }
+        }
+
         var index = new ProjectIndex(
             meta,
             projectSections,
@@ -124,7 +139,7 @@ internal static class ScanCommand
             Array.Empty<MessageFlowSection>(),
             Array.Empty<CallgraphSection>(),
             configSections,
-            Array.Empty<CommandSection>(),
+            commandSections,
             Array.Empty<TestSection>()
         );
 

@@ -23,6 +23,7 @@ Options:
   --scan-entrypoints / --no-scan-entrypoints  Enable/disable entrypoints (default on)
     --scan-configs / --no-scan-configs  Enable/disable configs extraction (default off)
     --env-prefix <P>        Add environment variable prefix filter (repeatable, default DOORMAN_)
+        --scan-commands / --no-scan-commands  Enable/disable commands extraction (default off)
   --verbose               Verbose diagnostics to stderr
   -h, --help              Show this help
 ";
@@ -71,7 +72,7 @@ Options:
             var exts = new List<string>();
             var ignores = new List<string>();
             var locMode = "physical";
-            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, verbose = false;
+            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, verbose = false;
             var envPrefixes = new List<string>();
             for (int i = 1; i < args.Length; i++)
             {
@@ -94,6 +95,8 @@ Options:
                     case "--scan-configs": scanConfigs = true; break;
                     case "--no-scan-configs": scanConfigs = false; break;
                     case "--env-prefix": if (i + 1 < args.Length) envPrefixes.Add(args[++i]); else return 5; break;
+                    case "--scan-commands": scanCommands = true; break;
+                    case "--no-scan-commands": scanCommands = false; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -116,6 +119,7 @@ Options:
                 scanEntrypoints,
                 scanConfigs,
                 envPrefixes,
+                scanCommands,
                 verbose);
             return code;
         }

@@ -197,3 +197,26 @@ public sealed class ConfigExtractorTests
         Assert.Contains("DOORMAN_BOT_API", section.EnvKeys);
     }
 }
+
+public sealed class CommandsExtractorTests
+{
+    private static string TestRepoRoot => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestAssets"));
+    private static string SlnPath => Path.Combine(TestRepoRoot, "CmdApp", "CmdApp.sln");
+
+    [Fact]
+    public async Task CommandsExtractor_FindsCoreCommands()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new CommandsExtractor();
+        extractor.Extract(ctx);
+        var items = extractor.Items;
+        Assert.Contains(items, i => i.Command == "/start" && i.Handler == "StartHandler");
+        Assert.Contains(items, i => i.Command == "/stats" && i.Handler == "StatsHandler");
+        Assert.Contains(items, i => i.Command == "/help" && i.Handler == null);
+        Assert.Contains(items, i => i.Command == "/about" && i.Handler == null);
+        Assert.Contains(items, i => i.Command == "/ban" && i.Handler == null);
+        // Sorted
+        var sorted = items.OrderBy(i => i.Command, StringComparer.Ordinal).ThenBy(i => i.Handler, StringComparer.Ordinal).ToList();
+        Assert.Equal(sorted.Select(x => x.Command+"|"+x.Handler), items.Select(x => x.Command+"|"+x.Handler));
+    }
+}

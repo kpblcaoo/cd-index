@@ -53,7 +53,15 @@ public sealed record ConfigSection(
     IReadOnlyList<string> EnvKeys,
     IReadOnlyList<string> AppProps
 );
-public sealed record CommandSection;
+public sealed record CommandSection(
+    IReadOnlyList<CommandItem> Items
+);
+public sealed record CommandItem(
+    string Command,
+    string? Handler,
+    string File,
+    int Line
+);
 public sealed record TestSection;
 
 // Supporting types for P0 sections

@@ -233,7 +233,28 @@
     },
     "Commands": {
       "type": "array",
-      "description": "Command analysis (future extension)"
+      "description": "Command analysis",
+      "items": {
+        "type": "object",
+        "required": ["Items"],
+        "properties": {
+          "Items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["Command", "File", "Line"],
+              "properties": {
+                "Command": { "type": "string", "description": "Chat command text incl. leading slash" },
+                "Handler": { "type": ["string", "null"], "description": "Resolved handler type/name if any" },
+                "File": { "type": "string", "description": "Repo-relative file path" },
+                "Line": { "type": "integer", "minimum": 1, "description": "Line number (1-based)" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "Tests": {
       "type": "array",
