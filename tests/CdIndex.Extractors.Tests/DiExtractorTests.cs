@@ -271,15 +271,64 @@ public sealed class FlowExtractorTests
         var extractor = new FlowExtractor("MessageHandler", "HandleAsync");
         extractor.Extract(ctx);
         var nodes = extractor.Nodes;
-        Assert.True(nodes.Count >= 6, "Expected at least 6 nodes");
+        // New behavior: no explicit return nodes inside guards, so expected sequence shrinks
+    // Collapse heuristic turns 'if(IsCommand()){ Router.Handle(); return; }' into only delegate (no guard for that one)
     string[] expectedKinds = { "guard", "guard", "delegate", "guard", "delegate", "delegate" };
     string[] expectedDetailsStarts = { "IsWhitelisted()", "IsDisabled()", "Router.Handle", "IsPrivate()", "JoinFacade.Handle", "ModerationService.Check" };
-    for (int i = 0; i < expectedKinds.Length; i++)
+    Assert.Equal(expectedKinds.Length, nodes.Count);
+        for (int i = 0; i < expectedKinds.Length; i++)
         {
             Assert.Equal(expectedKinds[i], nodes[i].Kind);
             Assert.StartsWith(expectedDetailsStarts[i], nodes[i].Detail);
             Assert.True(nodes[i].Order == i);
             Assert.False(System.IO.Path.IsPathRooted(nodes[i].File));
         }
+    }
+
+    [Fact]
+    public async Task FlowExtractor_AsyncTask_Method()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new FlowExtractor("MessageHandlerAsync", "HandleAsync");
+        extractor.Extract(ctx);
+        Assert.NotEmpty(extractor.Nodes);
+        Assert.Contains(extractor.Nodes, n => n.Kind == "guard");
+        Assert.Contains(extractor.Nodes, n => n.Kind == "delegate");
+    }
+
+    [Fact]
+    public async Task FlowExtractor_ValueTask_Method()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new FlowExtractor("MessageHandlerVT", "HandleAsync");
+        extractor.Extract(ctx);
+        Assert.NotEmpty(extractor.Nodes);
+        Assert.Contains(extractor.Nodes, n => n.Kind == "guard");
+    }
+
+    [Fact]
+    public async Task FlowExtractor_Fallback_SimpleName_ChoosesDeterministic()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor = new FlowExtractor("MessageHandler", "HandleAsync"); // ambiguous simple name
+        extractor.Extract(ctx);
+    // Fallback should choose the deterministic (global namespace) handler variant producing 6 nodes
+    Assert.Equal(6, extractor.Nodes.Count);
+    }
+
+    [Fact]
+    public async Task FlowExtractor_Error_On_MissingType()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var ex = Assert.Throws<InvalidOperationException>(() => new FlowExtractor("NoSuchHandler", "HandleAsync").Extract(ctx));
+        Assert.Contains("flow handler type not found", ex.Message);
+    }
+
+    [Fact]
+    public async Task FlowExtractor_Error_On_MissingMethod()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var ex = Assert.Throws<InvalidOperationException>(() => new FlowExtractor("MessageHandler", "DoWork").Extract(ctx));
+        Assert.Contains("flow method not found", ex.Message);
     }
 }
