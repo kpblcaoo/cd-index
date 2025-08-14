@@ -4,8 +4,8 @@
 
 ## Features (P1 additions)
 - Config extractor (`--scan-configs` + `--env-prefix`): collects environment variable keys (by prefix) and referenced app config interface properties.
-- Commands extractor (`--scan-commands`): collects chat/command registrations (`/start`, etc.) from router registrations and simple comparison patterns.
-- Message flow extractor (`--scan-flow --flow-handler <Type> [--flow-method <Method>]`): linearizes guards, delegate calls, returns inside specified handler method.
+- Commands extractor (`--scan-commands`): collects chat/command registrations (`/start`, etc.) from router registrations and simple comparison patterns (with multi-alias & conflict detection).
+- Message flow extractor (`--scan-flow --flow-handler <Type> [--flow-method <Method>]`): linearizes top-level guards, delegate calls, returns inside specified handler method (see `README.flow.md`).
 
 ## Usage
 
@@ -34,8 +34,11 @@ cd-index --selfcheck --scan-tree-only
 ## Determinism
 All emitted JSON collections are sorted (ordinal). Paths are repo-relative with forward slashes. Re-running the same command yields byte-identical output except `GeneratedAt` timestamp.
 
-## Schema
+## Schema & Docs
 See `schema/project_index.schema.json`. New sections (v1.1): `Configs`, `Commands`, `MessageFlow`.
+
+Additional docs:
+- `README.flow.md` – flow extractor patterns, resolution strategy, verbose diagnostics.
 
 ## Tests
 Run all tests:
