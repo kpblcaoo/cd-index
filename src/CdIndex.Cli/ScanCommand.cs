@@ -11,11 +11,12 @@ namespace CdIndex.Cli;
 
 internal static class ScanCommand
 {
-    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, string locMode,
+    public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, bool useGitignore, string locMode,
         bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool scanCommands,
     bool scanFlow, string? flowHandler, string flowMethod, bool verbose, List<string>? commandRouterNames = null,
     List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
-    string? commandConflicts = null, string? commandConflictReport = null)
+    string? commandConflicts = null, string? commandConflictReport = null, IEnumerable<string>? flowDelegateSuffixes = null,
+    List<string>? commandsInclude = null, bool diDedupe = false)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -54,7 +55,8 @@ internal static class ScanCommand
         // Project sections: minimal for now (one per project in solution)
         var repoRootNorm = NormalizePath(repoRoot);
         var projectSections = roslyn.Solution.Projects
-            .Select(p => {
+            .Select(p =>
+            {
                 var full = NormalizePath(p.FilePath ?? string.Empty);
                 var rel = full.StartsWith(repoRootNorm, StringComparison.OrdinalIgnoreCase)
                     ? full.Substring(repoRootNorm.Length).TrimStart('/')
@@ -67,17 +69,56 @@ internal static class ScanCommand
         var treeSections = new List<TreeSection>();
         if (scanTree)
         {
-            var treeFiles = TreeScanner.Scan(repoRoot, exts.Length > 0 ? exts : null, ignores.Length > 0 ? ignores : null, locMode);
+            var ignoreList = ignores.ToList();
+            if (useGitignore)
+            {
+                try
+                {
+                    var gitIgnorePath = Path.Combine(repoRoot, ".gitignore");
+                    if (File.Exists(gitIgnorePath))
+                    {
+                        foreach (var line in File.ReadAllLines(gitIgnorePath))
+                        {
+                            var trimmed = line.Trim();
+                            if (trimmed.Length == 0) continue; // skip empty
+                            if (trimmed.StartsWith("#")) continue; // comment
+                            if (trimmed.StartsWith("!")) continue; // skip negation for P1
+                            // simple patterns: treat directory entries ending with / as prefix, others as prefix as well
+                            // remove leading ./ if present
+                            if (trimmed.StartsWith("./")) trimmed = trimmed.Substring(2);
+                            // normalize backslashes
+                            trimmed = trimmed.Replace('\\', '/');
+                            if (!trimmed.EndsWith('/'))
+                            {
+                                // If pattern contains glob chars *, treat up to first * as prefix (simplification)
+                                var star = trimmed.IndexOf('*');
+                                if (star >= 0)
+                                {
+                                    trimmed = trimmed.Substring(0, star);
+                                }
+                            }
+                            if (trimmed.Length == 0) continue;
+                            if (!ignoreList.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+                                ignoreList.Add(trimmed);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine("WARN: failed to parse .gitignore: " + ex.Message);
+                }
+            }
+            var treeFiles = TreeScanner.Scan(repoRoot, exts.Length > 0 ? exts : null, ignoreList.Count > 0 ? ignoreList : null, locMode);
             treeSections.Add(new TreeSection(treeFiles));
         }
 
         DISection diSection = new(new List<DiRegistration>(), new List<HostedService>());
-        if (scanDi)
+    if (scanDi)
         {
             try
             {
-                var diExtractor = new DiExtractor();
-                diExtractor.Extract(roslyn);
+        var diExtractor = new DiExtractor(diDedupe: diDedupe);
+        diExtractor.Extract(roslyn);
                 diSection = new DISection(diExtractor.Registrations.ToList(), diExtractor.HostedServices.ToList());
             }
             catch (Exception ex)
@@ -86,7 +127,7 @@ internal static class ScanCommand
             }
         }
 
-    var entrySections = new List<EntrypointsSection>();
+        var entrySections = new List<EntrypointsSection>();
         if (scanEntrypoints)
         {
             try
@@ -120,7 +161,7 @@ internal static class ScanCommand
         }
 
         var commandSections = new List<CommandSection>();
-        if (scanCommands)
+    if (scanCommands)
         {
             try
             {
@@ -128,13 +169,21 @@ internal static class ScanCommand
                 var commandDedupMode = commandDedup; // null -> case-sensitive
                 var normTrim = commandNormalize == null || commandNormalize.Count == 0 || commandNormalize.Contains("trim", StringComparer.OrdinalIgnoreCase);
                 var normSlash = commandNormalize == null || commandNormalize.Count == 0 || commandNormalize.Contains("ensure-slash", StringComparer.OrdinalIgnoreCase);
+                bool includeComparison = commandsInclude != null && commandsInclude.Any(i => string.Equals(i, "comparison", StringComparison.OrdinalIgnoreCase));
+                bool includeRouter = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "router", StringComparison.OrdinalIgnoreCase));
+                bool includeAttributes = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "attributes", StringComparison.OrdinalIgnoreCase));
+                var allowRegex = "^/[a-z][a-z0-9_]*$"; // default conservative pattern
                 var cmdExtractor = new CommandsExtractor(
                     commandRouterNames != null && commandRouterNames.Count > 0 ? commandRouterNames : null,
                     commandAttrNames != null && commandAttrNames.Count > 0 ? commandAttrNames : null,
                     caseInsensitive: commandDedupMode == "case-insensitive" || commandDedupMode == "ci",
                     allowBare: false,
                     normalizeTrim: normTrim,
-                    normalizeEnsureSlash: normSlash);
+                    normalizeEnsureSlash: normSlash,
+                    includeRouter: includeRouter,
+                    includeAttributes: includeAttributes,
+                    includeComparisons: includeComparison,
+                    allowRegex: allowRegex);
                 cmdExtractor.Extract(roslyn);
                 var conflictsMode = (commandConflicts ?? "warn").ToLowerInvariant();
                 if (cmdExtractor.Conflicts.Count > 0)
@@ -210,13 +259,14 @@ internal static class ScanCommand
             }
             try
             {
-                var flowExtractor = new FlowExtractor(flowHandler!, flowMethod);
+                var flowExtractor = new FlowExtractor(flowHandler!, flowMethod, verbose, msg => Console.Error.WriteLine(msg), flowDelegateSuffixes);
                 flowExtractor.Extract(roslyn);
                 flowSections.Add(new MessageFlowSection(flowExtractor.Nodes.ToList()));
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("WARN: Flow extraction failed: " + ex.Message);
+                Console.Error.WriteLine((ex is InvalidOperationException ? "ERROR" : "WARN") + ": Flow extraction failed: " + ex.Message);
+                if (ex is InvalidOperationException) return 5;
             }
         }
 

@@ -17,6 +17,9 @@ Options:
     --out <file>                     Write JSON to file (default stdout)
     --ext <extension>                Additional file extension to include (repeatable)
     --ignore <glob|prefix>           Path prefix or suffix to ignore (repeatable)
+    --gitignore                      Merge .gitignore patterns (simple: comments/# & ! excluded)
+    --sections <list>                Comma/space list of sections to enable (Tree,DI,Entrypoints,Configs,Commands,MessageFlow,Callgraphs)
+    --no-tree                        Shorthand for --sections DI,Entrypoints,Configs,Commands,MessageFlow,Callgraphs
     --loc-mode <physical|logical>    LOC counting mode (default physical)
     --scan-tree / --no-scan-tree     Enable/disable tree section (default on)
     --scan-di / --no-scan-di         Enable/disable DI extraction (default on)
@@ -28,16 +31,19 @@ Options:
     --commands-attr-names <names>               Comma/space separated attribute names for command discovery (default Command,Commands)
     --commands-normalize <rules>                Comma/space list: trim,ensure-slash (default trim,ensure-slash)
     --commands-dedup <mode>                     case-sensitive|case-insensitive (default case-sensitive)
+    --commands-include <modes>                  router,attributes,comparison (default router,attributes)
     --commands-conflicts <mode>                 warn|error|ignore (default warn)
     --commands-conflict-report <file>           Optional JSON file with conflict details (no schema change)
+    --di-dedupe                                 Enable DI duplicate suppression (keep first)
     --scan-flow / --no-scan-flow     Enable/disable message flow extraction (default off)
     --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
     --flow-method <MethodName>       Handler method name for flow (default HandleAsync)
+    --flow-delegate-suffixes <list>  Comma/space list of type suffixes treated as delegates (default Router,Facade,Service,Dispatcher,Processor,Manager,Module)
     --verbose                        Verbose diagnostics to stderr
     -h, --help                       Show this help
 ";
 
-    bool IsHelp(string a) => a == "--help" || a == "-h" || a == "help";
+        bool IsHelp(string a) => a == "--help" || a == "-h" || a == "help";
 
         var versionOption = new Option<bool>("--version")
         {
@@ -59,7 +65,7 @@ Options:
         {
             Description = "Include Entrypoints extraction (Program.Main + HostedServices)"
         };
-    var rootCommand = new RootCommand("cd-index CLI tool");
+        var rootCommand = new RootCommand("cd-index CLI tool");
         rootCommand.Options.Add(versionOption);
         rootCommand.Options.Add(selfCheckOption);
         rootCommand.Options.Add(scanTreeOnlyOption);
@@ -80,16 +86,20 @@ Options:
             FileInfo? outFile = null;
             var exts = new List<string>();
             var ignores = new List<string>();
-        string? commandConflictReport = null;
+            bool useGitignore = false;
+            List<string>? sectionsRequested = null;
+            string? commandConflictReport = null;
             var locMode = "physical";
             bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
-            string? flowHandler = null; string flowMethod = "HandleAsync";
+            string? flowHandler = null; string flowMethod = "HandleAsync"; string? flowDelegateSuffixes = null;
             var envPrefixes = new List<string>();
             var commandRouterNames = new List<string>();
             var commandAttrNames = new List<string>();
             var commandNormalize = new List<string>();
             string? commandDedup = null;
             string? commandConflicts = null;
+            var commandInclude = new List<string>();
+            bool diDedupe = false;
             for (int i = 1; i < args.Length; i++)
             {
                 var a = args[i];
@@ -100,6 +110,18 @@ Options:
                     case "--out": if (i + 1 < args.Length) outFile = new FileInfo(args[++i]); else return 5; break;
                     case "--ext": if (i + 1 < args.Length) exts.Add(args[++i]); else return 5; break;
                     case "--ignore": if (i + 1 < args.Length) ignores.Add(args[++i]); else return 5; break;
+                    case "--gitignore": useGitignore = true; break;
+                    case "--sections":
+                        if (i + 1 < args.Length)
+                        {
+                            sectionsRequested ??= new List<string>();
+                            sectionsRequested.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries));
+                        }
+                        else return 5; break;
+                    case "--no-tree":
+                        // Previous behavior enabled MessageFlow implicitly; now treat flow as explicit opt-in only.
+                        sectionsRequested = new List<string> { "DI", "Entrypoints", "Configs", "Commands", /* no MessageFlow */ "Callgraphs" };
+                        break;
                     case "--loc-mode": if (i + 1 < args.Length) locMode = args[++i]; else return 5; break;
                     case "--scan-tree": scanTree = true; break; // defaults true
                     case "--scan-di": scanDi = true; break;
@@ -132,10 +154,15 @@ Options:
                     case "--commands-conflicts":
                         if (i + 1 < args.Length) commandConflicts = args[++i]; else return 5;
                         break;
+                    case "--commands-include":
+                        if (i + 1 < args.Length) commandInclude.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5; break;
+                    case "--di-dedupe":
+                        diDedupe = true; break;
                     case "--scan-flow": scanFlow = true; break;
                     case "--no-scan-flow": scanFlow = false; break;
                     case "--flow-handler": if (i + 1 < args.Length) flowHandler = args[++i]; else return 5; break;
                     case "--flow-method": if (i + 1 < args.Length) flowMethod = args[++i]; else return 5; break;
+                    case "--flow-delegate-suffixes": if (i + 1 < args.Length) flowDelegateSuffixes = args[++i]; else return 5; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -146,18 +173,69 @@ Options:
                         return 5;
                 }
             }
+            // Normalize & expand comma-separated lists for exts / ignores
+            if (exts.Count > 0)
+            {
+                var norm = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var raw in exts)
+                {
+                    foreach (var token in raw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var t = token.Trim();
+                        if (t.Length == 0) continue;
+                        if (!t.StartsWith('.')) t = "." + t; // ensure leading dot for extension matching
+                        norm.Add(t);
+                    }
+                }
+                exts = norm.ToList();
+            }
+            if (ignores.Count > 0)
+            {
+                var norm = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var raw in ignores)
+                {
+                    foreach (var token in raw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var t = token.Trim();
+                        if (t.Length == 0) continue;
+                        // normalize leading slash removal
+                        if (t.StartsWith("/")) t = t.TrimStart('/');
+                        norm.Add(t.EndsWith("/") ? t : t); // keep as-is for prefix match
+                    }
+                }
+                ignores = norm.ToList();
+            }
+            if (sectionsRequested != null && sectionsRequested.Count > 0)
+            {
+                scanTree = scanDi = scanEntrypoints = scanConfigs = scanCommands = scanFlow = false; // reset
+                foreach (var s in sectionsRequested)
+                {
+                    switch (s.ToLowerInvariant())
+                    {
+                        case "tree": scanTree = true; break;
+                        case "di": scanDi = true; break;
+                        case "entrypoints": scanEntrypoints = true; break;
+                        case "configs": scanConfigs = true; break;
+                        case "commands": scanCommands = true; break;
+                        case "messageflow": scanFlow = true; break;
+                        case "callgraphs": /* placeholder */ break;
+                        default: Console.Error.WriteLine($"WARN: unknown section '{s}' ignored"); break;
+                    }
+                }
+            }
             var code = ScanCommand.Run(
                 slnPath != null ? new FileInfo(slnPath) : null,
                 csprojPath != null ? new FileInfo(csprojPath) : null,
                 outFile,
                 exts.ToArray(),
                 ignores.ToArray(),
+                useGitignore,
                 locMode,
                 scanTree,
                 scanDi,
                 scanEntrypoints,
                 scanConfigs,
-        // conflict report handled inside ScanCommand
+                // conflict report handled inside ScanCommand
                 envPrefixes,
                 scanCommands,
                 scanFlow,
@@ -169,7 +247,10 @@ Options:
                 commandNormalize,
                 commandDedup,
                 commandConflicts,
-                commandConflictReport);
+                commandConflictReport,
+                flowDelegateSuffixes != null ? flowDelegateSuffixes.Split(',', ' ', StringSplitOptions.RemoveEmptyEntries) : null,
+                commandInclude,
+                diDedupe);
             return code;
         }
 
