@@ -24,6 +24,7 @@ Options:
     --scan-configs / --no-scan-configs          Enable/disable configs extraction (default off)
     --env-prefix <P>                 Add environment variable prefix filter (repeatable, default DOORMAN_)
     --scan-commands / --no-scan-commands        Enable/disable commands extraction (default off)
+    --scan-cli-commands                         Enable System.CommandLine command model extraction (experimental)
     --commands-router-names <names>             Comma/space separated router method names (default Map,Register,Add,On,Route,Bind)
     --commands-attr-names <names>               Comma/space separated attribute names for command discovery (default Command,Commands)
     --commands-normalize <rules>                Comma/space list: trim,ensure-slash (default trim,ensure-slash)
@@ -147,7 +148,8 @@ Options:
             List<string>? sectionsRequested = null;
             string? commandConflictReport = null;
             var locMode = "physical";
-            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
+            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false; // neutral defaults
+            bool scanCliCommands = false; string? cliAllowRe = null;
             bool scanCallgraphs = false;
             bool noPretty = false;
             string? flowHandler = null; string flowMethod = "HandleAsync"; string? flowDelegateSuffixes = null;
@@ -195,6 +197,8 @@ Options:
                     case "--no-scan-di": scanDi = false; break;
                     case "--no-scan-entrypoints": scanEntrypoints = false; break;
                     case "--verbose": verbose = true; break;
+                    case "--scan-cli-commands": scanCliCommands = true; break;
+                    case "--cli-allow-re": if (i + 1 < args.Length) cliAllowRe = args[++i]; else return 5; break;
                     case "--scan-configs": scanConfigs = true; break;
                     case "--no-scan-configs": scanConfigs = false; break;
                     case "--env-prefix": if (i + 1 < args.Length) envPrefixes.Add(args[++i]); else return 5; break;
@@ -291,7 +295,7 @@ Options:
                         case "entrypoints": scanEntrypoints = true; break;
                         case "configs": scanConfigs = true; break;
                         case "commands": scanCommands = true; break;
-                        case "messageflow": scanFlow = true; break;
+                        case "messageflow": scanFlow = true; break; // still requires handler later
                         case "callgraphs": scanCallgraphs = true; break;
                         default: Console.Error.WriteLine($"WARN: unknown section '{s}' ignored"); break;
                     }
@@ -356,7 +360,9 @@ Options:
                 maxCallDepth,
                 maxCallNodes,
                 includeExternal,
-                noPretty);
+                noPretty,
+                scanCliCommands,
+                cliAllowRe);
             return code;
         }
 

@@ -6,6 +6,7 @@ using CdIndex.Core;
 using CdIndex.Roslyn;
 using CdIndex.Extractors;
 using CdIndex.Emit;
+using Microsoft.CodeAnalysis;
 
 namespace CdIndex.Cli;
 
@@ -17,8 +18,10 @@ internal static class ScanCommand
         List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
         string? commandConflicts = null, string? commandConflictReport = null, IEnumerable<string>? flowDelegateSuffixes = null,
         List<string>? commandsInclude = null, bool diDedupe = false, string? commandAllowRegex = null,
-        bool scanCallgraphs = false, List<string>? callgraphMethods = null, int? maxCallDepth = null, int? maxCallNodes = null, bool includeExternal = false,
-        bool noPretty = false)
+    bool scanCallgraphs = false, List<string>? callgraphMethods = null, int? maxCallDepth = null, int? maxCallNodes = null, bool includeExternal = false,
+    bool noPretty = false,
+    bool scanCliCommands = false,
+    string? cliAllowRegex = null)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -316,6 +319,56 @@ internal static class ScanCommand
             }
         }
 
+        // CLI commands extraction placeholder (implemented in p1-C1): keep empty for now unless future flag used.
+        CliCommandsSection[]? cliCommandsSections = null; // populated when --scan-cli-commands implemented
+        if (scanCliCommands)
+        {
+            try
+            {
+                var extractor = new CliCommandsExtractor(cliAllowRegex);
+                extractor.Extract(roslyn);
+                // Group by project using file path prefix resolution
+                var byProject = roslyn.Solution.Projects.ToDictionary(p => p, p => new List<CliCommand>());
+                foreach (var item in extractor.Items)
+                {
+                    // naive: locate project whose directory is prefix of file path
+                    Microsoft.CodeAnalysis.Project? owner = null;
+                    foreach (var p in roslyn.Solution.Projects)
+                    {
+                        var projDir = NormalizePath(Path.GetDirectoryName(p.FilePath!) ?? string.Empty) + "/";
+                        if (item.File.StartsWith(projDir, StringComparison.OrdinalIgnoreCase)) { owner = p; break; }
+                    }
+                    if (owner == null) owner = roslyn.Solution.Projects.First();
+                    byProject[owner].Add(item);
+                }
+                var sections = new List<CliCommandsSection>();
+                foreach (var kv in byProject)
+                {
+                    if (kv.Value.Count == 0) continue;
+                    var projectPathFull = NormalizePath(kv.Key.FilePath ?? string.Empty);
+                    var projRel = projectPathFull.StartsWith(repoRootNorm, StringComparison.OrdinalIgnoreCase) ? projectPathFull.Substring(repoRootNorm.Length).TrimStart('/') : projectPathFull;
+                    sections.Add(new CliCommandsSection(new ProjectRef(kv.Key.Name, projRel), kv.Value
+                        .OrderBy(i => i.Name, StringComparer.Ordinal)
+                        .ThenBy(i => i.File, StringComparer.Ordinal)
+                        .ThenBy(i => i.Line)
+                        .ToList()));
+                }
+                if (sections.Count > 0)
+                {
+                    cliCommandsSections = sections.OrderBy(c => c.Project.Name, StringComparer.Ordinal).ThenBy(c => c.Project.File, StringComparer.Ordinal).ToArray();
+                    if (verbose)
+                    {
+                        var total = cliCommandsSections.Sum(s => s.Items.Count);
+                        Console.Error.WriteLine($"CLI001 collected {total} cli commands");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: CLI commands extraction failed: " + ex.Message);
+            }
+        }
+
         var index = new ProjectIndex(
             meta,
             projectSections,
@@ -325,7 +378,9 @@ internal static class ScanCommand
             flowSections,
             callgraphSections,
             configSections,
+            // commandsSections empty when scanCommands=false (neutral default -> no noise)
             commandSections,
+            cliCommandsSections,
             Array.Empty<TestSection>()
         );
 

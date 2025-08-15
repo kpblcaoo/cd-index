@@ -86,6 +86,7 @@ class EmitSelfCheck
             scanTreeOnly ? new List<CallgraphsSection>() : new List<CallgraphsSection>(),
             scanTreeOnly ? new List<ConfigSection>() : new List<ConfigSection>(),
             scanTreeOnly ? new List<CommandSection>() : new List<CommandSection>(),
+            null,
             scanTreeOnly ? new List<TestSection>() : new List<TestSection>()
         );
         using var stream = Console.OpenStandardOutput();

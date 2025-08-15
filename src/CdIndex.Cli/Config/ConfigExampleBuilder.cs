@@ -25,6 +25,7 @@ public static class ConfigExampleBuilder
         sb.AppendLine("# noTree: if true, skip Tree section entirely.");
         sb.AppendLine("noTree = " + Bool(cfg.Scan.NoTree));
         sb.AppendLine("# sections: explicit subset override. Valid: Tree,DI,Entrypoints,Configs,Commands,MessageFlow,Callgraphs");
+        sb.AppendLine("# NOTE: Neutral defaults: Commands & MessageFlow are NOT enabled unless you add them here or pass --scan-commands / --scan-flow.");
         sb.AppendLine("sections = [" + string.Join(',', cfg.Scan.Sections.Select(Quote)) + "]");
         sb.AppendLine();
         sb.AppendLine("# --- File tree settings ---");
@@ -40,7 +41,7 @@ public static class ConfigExampleBuilder
         sb.AppendLine("dedupe = \"" + cfg.DI.Dedupe + "\"");
         sb.AppendLine("# Example alternative:\n# dedupe = \"keep-first\"");
         sb.AppendLine();
-        sb.AppendLine("# --- Commands extraction ---");
+        sb.AppendLine("# --- Commands extraction (opt-in) ---");
         sb.AppendLine("[commands]");
         sb.AppendLine("# include: discovery modes (router,attributes,comparison). 'comparison' reserved for future diff tooling.");
         sb.AppendLine("include = [" + string.Join(',', cfg.Commands.Include.Select(Quote)) + "]");
@@ -57,7 +58,7 @@ public static class ConfigExampleBuilder
         sb.AppendLine("# conflicts: warn | error | ignore – how to handle duplicates after normalization.");
         sb.AppendLine("conflicts = \"" + cfg.Commands.Conflicts + "\"");
         sb.AppendLine();
-        sb.AppendLine("# --- Message flow extraction ---");
+        sb.AppendLine("# --- Message flow extraction (opt-in) ---");
         sb.AppendLine("[flow]");
         sb.AppendLine("# handler: fully-qualified type name of the root handler (required when enabling MessageFlow).");
         sb.AppendLine("handler = " + (cfg.Flow.Handler != null ? Quote(cfg.Flow.Handler) : "null"));

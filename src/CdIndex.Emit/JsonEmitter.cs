@@ -129,6 +129,7 @@ public static class JsonEmitter
             ),
             orderedConfigs,
             index.Commands,
+            index.CliCommands, // already expected to be pre-sorted by extractor if present
             index.Tests
         );
     }

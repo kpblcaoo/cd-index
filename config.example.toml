@@ -11,7 +11,8 @@ ext = [".cs",".csproj",".sln",".json",".yaml",".yml"]
 # noTree: if true, skip Tree section entirely.
 noTree = false
 # sections: explicit subset override. Valid: Tree,DI,Entrypoints,Configs,Commands,MessageFlow,Callgraphs
-sections = ["Tree","DI","Entrypoints","Configs","Commands","MessageFlow"]
+# NOTE: Neutral defaults: Commands & MessageFlow are NOT enabled unless you add them here or pass --scan-commands / --scan-flow.
+sections = ["Tree","DI","Entrypoints","Configs"]
 
 # --- File tree settings ---
 [tree]
@@ -27,7 +28,7 @@ dedupe = "keep-all"
 # Example alternative:
 # dedupe = "keep-first"
 
-# --- Commands extraction ---
+# --- Commands extraction (opt-in) ---
 [commands]
 # include: discovery modes (router,attributes,comparison). 'comparison' reserved for future diff tooling.
 include = ["router","attributes"]
@@ -44,7 +45,7 @@ dedup = "case-sensitive"
 # conflicts: warn | error | ignore – how to handle duplicates after normalization.
 conflicts = "warn"
 
-# --- Message flow extraction ---
+# --- Message flow extraction (opt-in) ---
 [flow]
 # handler: fully-qualified type name of the root handler (required when enabling MessageFlow).
 handler = null
