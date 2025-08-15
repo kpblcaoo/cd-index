@@ -8,17 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-  <PackageReference Include="xunit.v3.core" Version="3.0.0" />
-  <PackageReference Include="xunit.v3.assert" Version="3.0.0" />
-  <PackageReference Include="xunit.runner.visualstudio" Version="3.1.3" />
-  <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="../../src/CdIndex.Extractors/CdIndex.Extractors.csproj" />
+    <PackageReference Include="xunit.v3.core" Version="3.0.0" />
+    <PackageReference Include="xunit.v3.assert" Version="3.0.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta7.25380.108" />
     <ProjectReference Include="../../src/CdIndex.Roslyn/CdIndex.Roslyn.csproj" />
     <ProjectReference Include="../../src/CdIndex.Core/CdIndex.Core.csproj" />
-  <ProjectReference Include="../../src/CdIndex.Cli/CdIndex.Cli.csproj" />
+    <ProjectReference Include="../../src/CdIndex.Cli/CdIndex.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>
