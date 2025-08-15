@@ -17,8 +17,10 @@ internal static class ScanCommand
         List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
         string? commandConflicts = null, string? commandConflictReport = null, IEnumerable<string>? flowDelegateSuffixes = null,
         List<string>? commandsInclude = null, bool diDedupe = false, string? commandAllowRegex = null,
-        bool scanCallgraphs = false, List<string>? callgraphMethods = null, int? maxCallDepth = null, int? maxCallNodes = null, bool includeExternal = false,
-        bool noPretty = false)
+    bool scanCallgraphs = false, List<string>? callgraphMethods = null, int? maxCallDepth = null, int? maxCallNodes = null, bool includeExternal = false,
+    bool noPretty = false,
+    bool scanCliCommands = false,
+    string? cliAllowRegex = null)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -318,6 +320,106 @@ internal static class ScanCommand
 
         // CLI commands extraction placeholder (implemented in p1-C1): keep empty for now unless future flag used.
         CliCommandsSection[]? cliCommandsSections = null; // populated when --scan-cli-commands implemented
+        if (scanCliCommands)
+        {
+            try
+            {
+                // Placeholder: simple scan of source for new Command("name") patterns via syntax (literal only) per project
+                var collected = new List<CliCommandsSection>();
+                foreach (var proj in roslyn.Solution.Projects)
+                {
+                    var items = new List<CliCommand>();
+                    foreach (var doc in proj.Documents)
+                    {
+                        if (doc.FilePath?.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) != true) continue;
+                        var root = doc.GetSyntaxRootAsync().Result;
+                        var model = doc.GetSemanticModelAsync().Result;
+                        if (root == null || model == null) continue;
+                        foreach (var objCreation in root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ObjectCreationExpressionSyntax>())
+                        {
+                            var typeName = objCreation.Type.ToString();
+                            if (!typeName.EndsWith("Command", StringComparison.Ordinal) || typeName == "RootCommand") continue; // skip RootCommand
+                            // first argument literal
+                            if (objCreation.ArgumentList?.Arguments.Count > 0)
+                            {
+                                var arg0 = objCreation.ArgumentList.Arguments[0].Expression;
+                                var constVal = model.GetConstantValue(arg0);
+                                if (constVal.HasValue && constVal.Value is string name && !string.IsNullOrWhiteSpace(name))
+                                {
+                                    if (cliAllowRegex != null)
+                                    {
+                                        try { if (!System.Text.RegularExpressions.Regex.IsMatch(name, cliAllowRegex)) continue; }
+                                        catch { }
+                                    }
+                                    var file = NormalizePath(doc.FilePath!);
+                                    var line = objCreation.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+                                    // Collect nested initializer members for Options / Arguments
+                                    var aliases = new List<string>();
+                                    var options = new List<string>();
+                                    var arguments = new List<string>();
+                                    if (objCreation.Initializer != null)
+                                    {
+                                        foreach (var expr in objCreation.Initializer.Expressions)
+                                        {
+                                            if (expr is Microsoft.CodeAnalysis.CSharp.Syntax.ObjectCreationExpressionSyntax child)
+                                            {
+                                                var childType = child.Type.ToString();
+                                                if (childType.StartsWith("Option", StringComparison.Ordinal))
+                                                {
+                                                    if (child.ArgumentList?.Arguments.Count > 0)
+                                                    {
+                                                        var oArg = child.ArgumentList.Arguments[0].Expression;
+                                                        var oCv = model.GetConstantValue(oArg);
+                                                        if (oCv.HasValue && oCv.Value is string opt && opt.StartsWith("--", StringComparison.Ordinal)) options.Add(opt);
+                                                    }
+                                                }
+                                                else if (childType.StartsWith("Argument", StringComparison.Ordinal))
+                                                {
+                                                    if (child.ArgumentList?.Arguments.Count > 0)
+                                                    {
+                                                        var aArg = child.ArgumentList.Arguments[0].Expression;
+                                                        var aCv = model.GetConstantValue(aArg);
+                                                        if (aCv.HasValue && aCv.Value is string argName && !string.IsNullOrWhiteSpace(argName)) arguments.Add(argName);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    items.Add(new CliCommand(name,
+                                        aliases.OrderBy(a => a, StringComparer.Ordinal).ToList(),
+                                        options.OrderBy(o => o, StringComparer.Ordinal).ToList(),
+                                        arguments.OrderBy(a => a, StringComparer.Ordinal).ToList(),
+                                        file, line));
+                                }
+                            }
+                        }
+                    }
+                    if (items.Count > 0)
+                    {
+                        var projectPathFull = NormalizePath(proj.FilePath ?? string.Empty);
+                        var projRel = projectPathFull.StartsWith(repoRootNorm, StringComparison.OrdinalIgnoreCase) ? projectPathFull.Substring(repoRootNorm.Length).TrimStart('/') : projectPathFull;
+                        collected.Add(new CliCommandsSection(new ProjectRef(proj.Name, projRel), items
+                            .OrderBy(i => i.Name, StringComparer.Ordinal)
+                            .ThenBy(i => i.File, StringComparer.Ordinal)
+                            .ThenBy(i => i.Line)
+                            .ToList()));
+                    }
+                }
+                if (collected.Count > 0)
+                {
+                    cliCommandsSections = collected.OrderBy(c => c.Project.Name, StringComparer.Ordinal).ThenBy(c => c.Project.File, StringComparer.Ordinal).ToArray();
+                    if (verbose)
+                    {
+                        var total = cliCommandsSections.Sum(s => s.Items.Count);
+                        Console.Error.WriteLine($"CLI001 collected {total} cli commands");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: CLI commands extraction failed: " + ex.Message);
+            }
+        }
 
         var index = new ProjectIndex(
             meta,

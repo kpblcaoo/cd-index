@@ -149,6 +149,7 @@ Options:
             string? commandConflictReport = null;
             var locMode = "physical";
             bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false; // neutral defaults
+            bool scanCliCommands = false; string? cliAllowRe = null;
             bool scanCallgraphs = false;
             bool noPretty = false;
             string? flowHandler = null; string flowMethod = "HandleAsync"; string? flowDelegateSuffixes = null;
@@ -196,6 +197,8 @@ Options:
                     case "--no-scan-di": scanDi = false; break;
                     case "--no-scan-entrypoints": scanEntrypoints = false; break;
                     case "--verbose": verbose = true; break;
+                    case "--scan-cli-commands": scanCliCommands = true; break;
+                    case "--cli-allow-re": if (i + 1 < args.Length) cliAllowRe = args[++i]; else return 5; break;
                     case "--scan-configs": scanConfigs = true; break;
                     case "--no-scan-configs": scanConfigs = false; break;
                     case "--env-prefix": if (i + 1 < args.Length) envPrefixes.Add(args[++i]); else return 5; break;
@@ -357,7 +360,9 @@ Options:
                 maxCallDepth,
                 maxCallNodes,
                 includeExternal,
-                noPretty);
+                noPretty,
+                scanCliCommands,
+                cliAllowRe);
             return code;
         }
 
