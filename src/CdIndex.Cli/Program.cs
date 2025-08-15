@@ -45,6 +45,7 @@ Options:
     --max-call-depth <N>            Max traversal depth (default 2)
     --max-call-nodes <N>            Max distinct nodes visited (default 200)
     --include-external              Include external (out-of-solution) callees as leaf nodes
+    --no-pretty                     Emit compact JSON (default pretty indented)
     --verbose                        Verbose diagnostics to stderr
     -h, --help                       Show this help
 ";
@@ -107,7 +108,13 @@ Options:
                 case "print":
                 {
                     string? explicitPath = null;
-                    for (int i=2;i<args.Length;i++) if (args[i]=="--config" && i+1<args.Length) explicitPath = args[++i];
+                    for (int i = 2; i < args.Length; i++)
+                    {
+                        if (args[i] == "--config" && i + 1 < args.Length)
+                        {
+                            explicitPath = args[++i];
+                        }
+                    }
                     var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
                     foreach (var d in diags) Console.Error.WriteLine(d);
                     Console.WriteLine(ConfigTemplate(cfg));
@@ -139,6 +146,7 @@ Options:
             var locMode = "physical";
             bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
             bool scanCallgraphs = false;
+            bool noPretty = false;
             string? flowHandler = null; string flowMethod = "HandleAsync"; string? flowDelegateSuffixes = null;
             var envPrefixes = new List<string>();
             var commandRouterNames = new List<string>();
@@ -225,6 +233,7 @@ Options:
                     case "--max-call-depth": if (i + 1 < args.Length && int.TryParse(args[++i], out var mcd)) maxCallDepth = mcd; else return 5; break;
                     case "--max-call-nodes": if (i + 1 < args.Length && int.TryParse(args[++i], out var mcn)) maxCallNodes = mcn; else return 5; break;
                     case "--include-external": includeExternal = true; break;
+                    case "--no-pretty": noPretty = true; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -343,7 +352,8 @@ Options:
                 callgraphMethods,
                 maxCallDepth,
                 maxCallNodes,
-                includeExternal);
+                includeExternal,
+                noPretty);
             return code;
         }
 

@@ -64,13 +64,22 @@ public class JsonEmitterTests
         var index = CreateSampleProjectIndex();
 
         // Act
-        var json = JsonEmitter.EmitString(index);
+    var json = JsonEmitter.EmitString(index, pretty: false);
 
         // Assert
         // Should not contain pretty-print formatting
         Assert.DoesNotContain("  ", json); // No spaces for indentation
         Assert.DoesNotContain("\n", json); // No newlines
         Assert.DoesNotContain("\r", json); // No carriage returns
+    }
+
+    [Fact]
+    public void JsonEmitter_Emit_PrettyByDefault()
+    {
+        var index = CreateSampleProjectIndex();
+        var json = JsonEmitter.EmitString(index); // default pretty
+        Assert.Contains("\n", json);
+        Assert.Contains("  ", json); // indentation spaces present
     }
 
     [Fact]

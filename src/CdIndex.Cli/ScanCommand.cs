@@ -17,7 +17,8 @@ internal static class ScanCommand
         List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
         string? commandConflicts = null, string? commandConflictReport = null, IEnumerable<string>? flowDelegateSuffixes = null,
         List<string>? commandsInclude = null, bool diDedupe = false, string? commandAllowRegex = null,
-        bool scanCallgraphs = false, List<string>? callgraphMethods = null, int? maxCallDepth = null, int? maxCallNodes = null, bool includeExternal = false)
+        bool scanCallgraphs = false, List<string>? callgraphMethods = null, int? maxCallDepth = null, int? maxCallNodes = null, bool includeExternal = false,
+        bool noPretty = false)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -162,7 +163,7 @@ internal static class ScanCommand
         }
 
         var commandSections = new List<CommandSection>();
-	if (scanCommands)
+    if (scanCommands)
         {
             try
             {
@@ -333,13 +334,13 @@ internal static class ScanCommand
             if (outFile == null)
             {
                 if (verbose) Console.Error.WriteLine("[scan] writing JSON to STDOUT");
-                JsonEmitter.Emit(index, Console.OpenStandardOutput());
+                JsonEmitter.Emit(index, Console.OpenStandardOutput(), pretty: !noPretty);
             }
             else
             {
                 if (verbose) Console.Error.WriteLine($"[scan] writing JSON file: {outFile.FullName}");
                 using var fs = File.Create(outFile.FullName);
-                JsonEmitter.Emit(index, fs);
+                JsonEmitter.Emit(index, fs, pretty: !noPretty);
             }
             if (verbose) Console.Error.WriteLine("[scan] done");
             return 0;
