@@ -4,11 +4,13 @@
 
 ## Features (P1 additions)
 - Config extractor (`--scan-configs` + `--env-prefix`): collects environment variable keys (by prefix) and referenced app config interface properties.
-- Commands extractor (`--scan-commands`): collects chat/command registrations (`/start`, etc.) from:
-	- router registrations (default)
-	- handler attributes (default)
+- Commands extractor (`--scan-commands`): collects chat/command registrations (`/start`, etc.) from gated sources:
+	- router registrations (default, gate with `--commands-include router`)
+	- handler attributes (default, gate with `--commands-include attributes`)
 	- simple comparison patterns (opt-in via `--commands-include comparison`)
-	- multi-alias & conflict detection (case-insensitive grouping when `--commands-dedup case-insensitive`)
+	- source gating: omit a source by excluding it from the comma list (e.g. `--commands-include router,attributes` prevents comparison-derived constants leaking).
+	- optional case-insensitive canonical conflict grouping when `--commands-dedup case-insensitive`.
+	- regex whitelist (default `^/[a-z][a-z0-9_]*$`) filters out improbable tokens (e.g. `/X-Service-Token`). Future flag `--commands-allow-regex` will allow override (currently internal; set to relaxed by editing code if needed).
 - DI extractor: emits full interface & implementation display names; optional duplicate suppression via `--di-dedupe`; filters out Exception-derived implementations.
 - Message flow extractor (`--scan-flow --flow-handler <Type> [--flow-method <Method>]`): linearizes top-level guards, delegate calls, returns inside specified handler method (see `README.flow.md`).
 
@@ -29,6 +31,9 @@ cd-index scan --sln path/to/CmdApp.sln --scan-commands --out cmd.json
 
 # Commands including comparison-based discovery
 cd-index scan --sln path/to/CmdApp.sln --scan-commands --commands-include comparison --out cmd.json
+
+# Commands excluding comparison (explicitly list defaults) – equivalent to default
+cd-index scan --sln path/to/CmdApp.sln --scan-commands --commands-include router,attributes --out cmd.json
 
 # Message Flow
 cd-index scan --sln path/to/FlowApp.sln --scan-flow --flow-handler MessageHandler --flow-method HandleAsync --out flow.json
@@ -71,11 +76,10 @@ Key suites:
 ## Roadmap
 Further extractors (callgraphs, test detection) to follow; focus remains on deterministic, minimal, dependency-light implementation.
 
-## Ignoring Files
+## Ignoring Files & Extensions
 - `--ignore` accepts comma or space separated tokens and can be repeated.
-- `--gitignore` merges simple patterns from `.gitignore` (ignores comments `#` and negations `!`; trims after first `*` for simplicity P1).
-
-## File Extensions
+- `--gitignore` merges simple directory/file suffix patterns from `.gitignore` (comments `#` and negations `!` skipped; wildcard segments after the first `*` truncated in P1 simplification).
+- `--ext` accepts comma-separated list (with or without leading dots) and can be repeated; duplicates removed.
 ## Quick jq Verification
 Examples for sanity-checking output JSON.
 
@@ -106,4 +110,7 @@ Count env config keys by prefix:
 jq '.Configs.EnvKeys | group_by(.Prefix) | map({prefix:.[0].Prefix,count:length})' index.json
 ```
 
-- `--ext` accepts comma-separated list (with or without leading dots) and can be repeated; duplicates removed.
+Lowercase-regex accepted commands only (simulate by filtering items not matching pattern):
+```
+jq '.Commands.Items | map(select(.Command|test("^/[a-z][a-z0-9_]*$")))' index.json
+```
