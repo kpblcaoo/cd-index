@@ -17,6 +17,21 @@ public class ConfigTests
     }
 
     [Fact]
+    public void Example_Config_Has_Rich_Sections()
+    {
+        var example = CdIndex.Cli.Config.ConfigExampleBuilder.Build(CdIndex.Cli.Config.ScanConfig.Defaults());
+        Assert.Contains("[scan]", example);
+        Assert.Contains("[tree]", example);
+        Assert.Contains("[di]", example);
+        Assert.Contains("[commands]", example);
+        Assert.Contains("[flow]", example);
+        Assert.Contains("Callgraph extraction", example); // commented callgraph guidance
+        // ensure comments present
+        Assert.Contains("# cd-index configuration", example);
+        Assert.Contains("# sections:", example);
+    }
+
+    [Fact]
     public void Config_Print_Defaults_When_No_File()
     {
         var (exe, repo) = PrepareRepo();

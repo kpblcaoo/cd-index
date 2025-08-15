@@ -101,7 +101,7 @@ Options:
                         return 8;
                     }
                     var defaults = Config.ScanConfig.Defaults();
-                    File.WriteAllText(path, ConfigTemplate(defaults));
+                    File.WriteAllText(path, Config.ConfigExampleBuilder.Build(defaults));
                     Console.WriteLine($"Written template config to {path}");
                     return 0;
                 }
@@ -117,7 +117,7 @@ Options:
                     }
                     var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
                     foreach (var d in diags) Console.Error.WriteLine(d);
-                    Console.WriteLine(ConfigTemplate(cfg));
+                    Console.WriteLine(Config.ConfigExampleBuilder.Build(cfg));
                     return 0;
                 }
                 default:
@@ -382,37 +382,5 @@ Options:
         return 0;
     }
 
-    private static string ConfigTemplate(Config.ScanConfig cfg)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("# cd-index configuration (TOML)");
-        sb.AppendLine("[scan]");
-        sb.AppendLine($"ignore = [{string.Join(',', cfg.Scan.Ignore.Select(s=>Quote(s)))}]");
-        sb.AppendLine($"ext = [{string.Join(',', cfg.Scan.Ext.Select(s=>Quote(s)))}]");
-        sb.AppendLine($"noTree = {cfg.Scan.NoTree.ToString().ToLowerInvariant()}");
-        sb.AppendLine($"sections = [{string.Join(',', cfg.Scan.Sections.Select(s=>Quote(s)))}]");
-        sb.AppendLine();
-        sb.AppendLine("[tree]");
-        sb.AppendLine($"locMode = \"{cfg.Tree.LocMode}\"");
-        sb.AppendLine($"useGitignore = {cfg.Tree.UseGitignore.ToString().ToLowerInvariant()}");
-        sb.AppendLine();
-        sb.AppendLine("[di]");
-        sb.AppendLine($"dedupe = \"{cfg.DI.Dedupe}\"");
-        sb.AppendLine();
-        sb.AppendLine("[commands]");
-        sb.AppendLine($"include = [{string.Join(',', cfg.Commands.Include.Select(Quote))}]");
-        sb.AppendLine($"attrNames = [{string.Join(',', cfg.Commands.AttrNames.Select(Quote))}]");
-        sb.AppendLine($"routerNames = [{string.Join(',', cfg.Commands.RouterNames.Select(Quote))}]");
-        sb.AppendLine($"normalize = [{string.Join(',', cfg.Commands.Normalize.Select(Quote))}]");
-        sb.AppendLine($"allowRegex = \"{cfg.Commands.AllowRegex}\"");
-        sb.AppendLine($"dedup = \"{cfg.Commands.Dedup}\"");
-        sb.AppendLine($"conflicts = \"{cfg.Commands.Conflicts}\"");
-        sb.AppendLine();
-        sb.AppendLine("[flow]");
-    sb.AppendLine("handler = " + (cfg.Flow.Handler!=null ? Quote(cfg.Flow.Handler) : "null"));
-        sb.AppendLine($"method = \"{cfg.Flow.Method}\"");
-        sb.AppendLine($"delegateSuffixes = [{string.Join(',', cfg.Flow.DelegateSuffixes.Select(Quote))}]");
-        return sb.ToString();
-    }
-    private static string Quote(string s) => $"\"{s}\"";
+    // Legacy inline template removed – now uses ConfigExampleBuilder.
 }
