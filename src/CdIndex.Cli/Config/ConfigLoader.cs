@@ -1,5 +1,7 @@
 using System.Text;
 using CdIndex.Cli.Config;
+using Tomlyn;
+using Tomlyn.Model;
 
 namespace CdIndex.Cli;
 
@@ -33,8 +35,7 @@ public static class ConfigLoader
         try
         {
             var text = File.ReadAllText(path, Encoding.UTF8);
-            // Minimal TOML parse via naive key=value extraction (placeholder until Tomlyn added)
-            var cfg = ParseToml(text, defaults);
+            var cfg = ParseTomlTomlyn(text, defaults, diags);
             diags.Add($"CFG010 Loaded config from {Path.GetFileName(path)}.");
             return (cfg, path, diags);
         }
@@ -45,70 +46,60 @@ public static class ConfigLoader
         }
     }
 
-    private static ScanConfig ParseToml(string text, ScanConfig defaults)
+    private static ScanConfig ParseTomlTomlyn(string text, ScanConfig defaults, List<string> diags)
     {
-        // TEMP very small parser: only handles '[section]' and 'key = [array]' or 'key = "value"' forms; fallback replaces whole lists.
-        // Replace later with Tomlyn for correctness.
         var cfg = ScanConfig.Defaults();
-        string? current = null;
-        foreach (var raw in text.Split('\n'))
+        try
         {
-            var line = raw.Trim();
-            if (line.Length == 0 || line.StartsWith('#')) continue;
-            if (line.StartsWith('[') && line.EndsWith(']')) { current = line[1..^1].Trim(); continue; }
-            var eq = line.IndexOf('=');
-            if (eq < 0) continue;
-            var key = line[..eq].Trim();
-            var value = line[(eq + 1)..].Trim();
-            if (current == "scan")
+            var doc = Toml.Parse(text);
+            if (doc.HasErrors)
             {
-                if (key == "ignore") cfg.Scan.Ignore = ParseArray(value);
-                else if (key == "ext") cfg.Scan.Ext = ParseArray(value);
-                else if (key == "noTree" && bool.TryParse(value, out var b)) cfg.Scan.NoTree = b;
-                else if (key == "sections") cfg.Scan.Sections = ParseArray(value);
+                foreach (var e in doc.Diagnostics) diags.Add($"CFG100 {e}" );
             }
-            else if (current == "tree")
+            var root = doc.ToModel();
+            if (root is TomlTable table)
             {
-                if (key == "locMode") cfg.Tree.LocMode = TrimQuotes(value);
-                else if (key == "useGitignore" && bool.TryParse(value, out var b2)) cfg.Tree.UseGitignore = b2;
+                // scan
+                if (table.TryGetValue("scan", out var scanObj) && scanObj is TomlTable scan)
+                {
+                    if (scan.TryGetValue("ignore", out var ig) && ig is TomlArray iga) cfg.Scan.Ignore = iga.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (scan.TryGetValue("ext", out var ex) && ex is TomlArray exa) cfg.Scan.Ext = exa.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (scan.TryGetValue("noTree", out var nt) && bool.TryParse(nt?.ToString(), out var bnt)) cfg.Scan.NoTree = bnt;
+                    if (scan.TryGetValue("sections", out var sec) && sec is TomlArray seca) cfg.Scan.Sections = seca.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                }
+                if (table.TryGetValue("tree", out var treeObj) && treeObj is TomlTable tree)
+                {
+                    if (tree.TryGetValue("locMode", out var lm) && lm!=null) cfg.Tree.LocMode = lm.ToString()!;
+                    if (tree.TryGetValue("useGitignore", out var ug) && bool.TryParse(ug?.ToString(), out var bug)) cfg.Tree.UseGitignore = bug;
+                }
+                if (table.TryGetValue("di", out var diObj) && diObj is TomlTable di)
+                {
+                    if (di.TryGetValue("dedupe", out var dd) && dd!=null) cfg.DI.Dedupe = dd.ToString()!;
+                }
+                if (table.TryGetValue("commands", out var cmdObj) && cmdObj is TomlTable cmd)
+                {
+                    if (cmd.TryGetValue("include", out var inc) && inc is TomlArray inca) cfg.Commands.Include = inca.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (cmd.TryGetValue("attrNames", out var an) && an is TomlArray ana) cfg.Commands.AttrNames = ana.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (cmd.TryGetValue("routerNames", out var rn) && rn is TomlArray rna) cfg.Commands.RouterNames = rna.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (cmd.TryGetValue("normalize", out var norm) && norm is TomlArray norma) cfg.Commands.Normalize = norma.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (cmd.TryGetValue("allowRegex", out var ar) && ar!=null) cfg.Commands.AllowRegex = ar.ToString();
+                    if (cmd.TryGetValue("dedup", out var dp) && dp!=null) cfg.Commands.Dedup = dp.ToString()!;
+                    if (cmd.TryGetValue("conflicts", out var cf) && cf!=null) cfg.Commands.Conflicts = cf.ToString()!;
+                }
+                if (table.TryGetValue("flow", out var flowObj) && flowObj is TomlTable flow)
+                {
+                    if (flow.TryGetValue("handler", out var h) && h!=null) cfg.Flow.Handler = h.ToString();
+                    if (flow.TryGetValue("method", out var m) && m!=null) cfg.Flow.Method = m.ToString()!;
+                    if (flow.TryGetValue("delegateSuffixes", out var ds) && ds is TomlArray dsa) cfg.Flow.DelegateSuffixes = dsa.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                }
             }
-            else if (current == "di")
-            {
-                if (key == "dedupe") cfg.DI.Dedupe = TrimQuotes(value);
-            }
-            else if (current == "commands")
-            {
-                if (key == "include") cfg.Commands.Include = ParseArray(value);
-                else if (key == "attrNames") cfg.Commands.AttrNames = ParseArray(value);
-                else if (key == "routerNames") cfg.Commands.RouterNames = ParseArray(value);
-                else if (key == "normalize") cfg.Commands.Normalize = ParseArray(value);
-                else if (key == "allowRegex") cfg.Commands.AllowRegex = TrimQuotes(value);
-                else if (key == "dedup") cfg.Commands.Dedup = TrimQuotes(value);
-                else if (key == "conflicts") cfg.Commands.Conflicts = TrimQuotes(value);
-            }
-            else if (current == "flow")
-            {
-                if (key == "handler") cfg.Flow.Handler = TrimQuotes(value);
-                else if (key == "method") cfg.Flow.Method = TrimQuotes(value);
-                else if (key == "delegateSuffixes") cfg.Flow.DelegateSuffixes = ParseArray(value);
-            }
+        }
+        catch (Exception ex)
+        {
+            diags.Add($"CFG901 TOML parse error: {ex.Message}");
         }
         return cfg;
     }
 
-    private static List<string> ParseArray(string raw)
-    {
-        raw = raw.Trim();
-        if (raw.StartsWith('[') && raw.EndsWith(']')) raw = raw[1..^1];
-        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Select(p => TrimQuotes(p.Trim())).Where(p => p.Length > 0).ToList();
-    }
-
-    private static string TrimQuotes(string v)
-    {
-        v = v.Trim();
-        if (v.Length >= 2 && ((v.StartsWith('"') && v.EndsWith('"')) || (v.StartsWith('\'') && v.EndsWith('\''))))
-            return v[1..^1];
-        return v;
-    }
+    // Legacy helpers removed (Tomlyn handles parsing)
 }

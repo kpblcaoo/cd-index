@@ -172,7 +172,7 @@ internal static class ScanCommand
                 bool includeComparison = commandsInclude != null && commandsInclude.Any(i => string.Equals(i, "comparison", StringComparison.OrdinalIgnoreCase));
                 bool includeRouter = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "router", StringComparison.OrdinalIgnoreCase));
                 bool includeAttributes = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "attributes", StringComparison.OrdinalIgnoreCase));
-                var allowRegex = "^/[a-z][a-z0-9_]*$"; // default conservative pattern
+                var allowRegex = "^/[a-z][a-z0-9_]*$"; // default conservative pattern (override via config planned)
                 var cmdExtractor = new CommandsExtractor(
                     commandRouterNames != null && commandRouterNames.Count > 0 ? commandRouterNames : null,
                     commandAttrNames != null && commandAttrNames.Count > 0 ? commandAttrNames : null,
@@ -199,7 +199,7 @@ internal static class ScanCommand
                         {
                             foreach (var v in c.Variants.OrderBy(v => v.Command, StringComparer.Ordinal))
                             {
-                                Console.Error.WriteLine($"COMMAND-CONFLICT {c.Key} -> {v.Command} (handler={v.Handler ?? "<null>"} {v.File}:{v.Line})");
+                                Console.Error.WriteLine($"CMD300 COMMAND-CONFLICT {c.Key} -> {v.Command} (handler={v.Handler ?? "<null>"} {v.File}:{v.Line})");
                             }
                         }
                     }
