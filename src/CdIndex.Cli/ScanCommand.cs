@@ -16,7 +16,7 @@ internal static class ScanCommand
     bool scanFlow, string? flowHandler, string flowMethod, bool verbose, List<string>? commandRouterNames = null,
     List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
     string? commandConflicts = null, string? commandConflictReport = null, IEnumerable<string>? flowDelegateSuffixes = null,
-    List<string>? commandsInclude = null, bool diDedupe = false)
+    List<string>? commandsInclude = null, bool diDedupe = false, string? commandAllowRegex = null)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -172,7 +172,7 @@ internal static class ScanCommand
                 bool includeComparison = commandsInclude != null && commandsInclude.Any(i => string.Equals(i, "comparison", StringComparison.OrdinalIgnoreCase));
                 bool includeRouter = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "router", StringComparison.OrdinalIgnoreCase));
                 bool includeAttributes = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "attributes", StringComparison.OrdinalIgnoreCase));
-                var allowRegex = "^/[a-z][a-z0-9_]*$"; // default conservative pattern (override via config planned)
+                var allowRegex = commandAllowRegex ?? "^/[a-z][a-z0-9_]*$"; // default conservative pattern
                 var cmdExtractor = new CommandsExtractor(
                     commandRouterNames != null && commandRouterNames.Count > 0 ? commandRouterNames : null,
                     commandAttrNames != null && commandAttrNames.Count > 0 ? commandAttrNames : null,

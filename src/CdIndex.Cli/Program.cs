@@ -34,6 +34,7 @@ Options:
     --commands-include <modes>                  router,attributes,comparison (default router,attributes)
     --commands-conflicts <mode>                 warn|error|ignore (default warn)
     --commands-conflict-report <file>           Optional JSON file with conflict details (no schema change)
+    --commands-allow-regex <regex>              Override allowed command validation regex (default ^/[a-z][a-z0-9_]*$)
     --di-dedupe                                 Enable DI duplicate suppression (keep first)
     --scan-flow / --no-scan-flow     Enable/disable message flow extraction (default off)
     --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
@@ -140,6 +141,7 @@ Options:
             string? commandDedup = null;
             string? commandConflicts = null;
             var commandInclude = new List<string>();
+            string? commandAllowRegex = null;
             bool diDedupe = false;
         string? configPath = null;
         for (int i = 1; i < args.Length; i++)
@@ -199,6 +201,8 @@ Options:
                         break;
                     case "--commands-include":
                         if (i + 1 < args.Length) commandInclude.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5; break;
+                    case "--commands-allow-regex":
+                        if (i + 1 < args.Length) commandAllowRegex = args[++i]; else return 5; break;
                     case "--di-dedupe":
                         diDedupe = true; break;
                     case "--scan-flow": scanFlow = true; break;
@@ -286,6 +290,7 @@ Options:
             if (cfg.Commands.Normalize.Count > 0 && commandNormalize.Count == 0) commandNormalize = cfg.Commands.Normalize;
             if (commandDedup == null) commandDedup = cfg.Commands.Dedup;
             if (commandConflicts == null) commandConflicts = cfg.Commands.Conflicts;
+            if (commandAllowRegex == null && !string.IsNullOrWhiteSpace(cfg.Commands.AllowRegex)) commandAllowRegex = cfg.Commands.AllowRegex;
             if (cfg.Flow.Handler != null && flowHandler == null) flowHandler = cfg.Flow.Handler;
             if (flowDelegateSuffixes == null && cfg.Flow.DelegateSuffixes.Count > 0) flowDelegateSuffixes = string.Join(',', cfg.Flow.DelegateSuffixes);
 
@@ -316,7 +321,8 @@ Options:
                 commandConflictReport,
                 flowDelegateSuffixes != null ? flowDelegateSuffixes.Split(',', ' ', StringSplitOptions.RemoveEmptyEntries) : null,
                 commandInclude,
-                diDedupe);
+                diDedupe,
+                commandAllowRegex);
             return code;
         }
 
