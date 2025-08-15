@@ -161,10 +161,21 @@ internal static class ScanCommand
         }
 
         var commandSections = new List<CommandSection>();
-    if (scanCommands)
+	if (scanCommands)
         {
             try
             {
+                if (verbose)
+                {
+                    var incList = commandsInclude == null || commandsInclude.Count == 0
+                        ? new[] { "router", "attributes" }
+                        : commandsInclude.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
+                    Console.Error.WriteLine($"CMD001 commands sources enabled: {string.Join(',', incList)}");
+                    if (!string.IsNullOrWhiteSpace(commandDedup))
+                        Console.Error.WriteLine($"CMD002 dedupe mode: {commandDedup}");
+                    if (!string.IsNullOrWhiteSpace(commandAllowRegex))
+                        Console.Error.WriteLine($"CMD003 allowRegex override: {commandAllowRegex}");
+                }
                 // TODO: wire actual flags for case-insensitive, allowBare, normalization selection
                 var commandDedupMode = commandDedup; // null -> case-sensitive
                 var normTrim = commandNormalize == null || commandNormalize.Count == 0 || commandNormalize.Contains("trim", StringComparer.OrdinalIgnoreCase);
@@ -257,6 +268,13 @@ internal static class ScanCommand
                 Console.Error.WriteLine("ERROR: --flow-handler required when --scan-flow is specified");
                 return 5;
             }
+            if (verbose)
+            {
+                var suffixesList = (flowDelegateSuffixes ?? Array.Empty<string>()).Any()
+                    ? string.Join(',', (flowDelegateSuffixes ?? Array.Empty<string>()).OrderBy(s => s, StringComparer.Ordinal))
+                    : "Router,Facade,Service,Dispatcher,Processor,Manager,Module";
+                Console.Error.WriteLine($"FLW010 flow handler={flowHandler} method={flowMethod} delegateSuffixes={suffixesList}");
+            }
             try
             {
                 var flowExtractor = new FlowExtractor(flowHandler!, flowMethod, verbose, msg => Console.Error.WriteLine(msg), flowDelegateSuffixes);
@@ -268,6 +286,10 @@ internal static class ScanCommand
                 Console.Error.WriteLine((ex is InvalidOperationException ? "ERROR" : "WARN") + ": Flow extraction failed: " + ex.Message);
                 if (ex is InvalidOperationException) return 5;
             }
+        }
+        else if (verbose)
+        {
+            Console.Error.WriteLine("FLW001 flow disabled (enable with --scan-flow)");
         }
 
         var index = new ProjectIndex(
