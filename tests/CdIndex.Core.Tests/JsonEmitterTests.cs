@@ -64,13 +64,22 @@ public class JsonEmitterTests
         var index = CreateSampleProjectIndex();
 
         // Act
-        var json = JsonEmitter.EmitString(index);
+        var json = JsonEmitter.EmitString(index, pretty: false);
 
         // Assert
         // Should not contain pretty-print formatting
         Assert.DoesNotContain("  ", json); // No spaces for indentation
         Assert.DoesNotContain("\n", json); // No newlines
         Assert.DoesNotContain("\r", json); // No carriage returns
+    }
+
+    [Fact]
+    public void JsonEmitter_Emit_PrettyByDefault()
+    {
+        var index = CreateSampleProjectIndex();
+        var json = JsonEmitter.EmitString(index); // default pretty
+        Assert.Contains("\n", json);
+        Assert.Contains("  ", json); // indentation spaces present
     }
 
     [Fact]
@@ -105,7 +114,7 @@ public class JsonEmitterTests
             Array.Empty<DISection>(),
             Array.Empty<EntrypointsSection>(),
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
@@ -144,7 +153,7 @@ public class JsonEmitterTests
             Array.Empty<DISection>(),
             new[] { ep2, ep1 }, // unsorted
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
@@ -241,7 +250,7 @@ public class JsonEmitterTests
             new[] { di },
             new[] { entrypointsSection },
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
@@ -264,7 +273,7 @@ public class JsonEmitterTests
             Array.Empty<DISection>(),
             Array.Empty<EntrypointsSection>(),
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()

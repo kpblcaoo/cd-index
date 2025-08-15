@@ -30,7 +30,8 @@ public class EntrypointsExtractorTests
         Assert.Contains("Program", section.ProgramMain.TypeName);
 
         Assert.NotNull(section.HostedServices);
-        Assert.Contains(section.HostedServices, h => h.Type == "MyHosted");
+        // Hosted service types are fully-qualified (consistent with DI extractor)
+        Assert.Contains(section.HostedServices, h => h.Type == "TestDiApp.MyHosted");
 
         // Deterministic sorting of hosted services
         var sorted = section.HostedServices

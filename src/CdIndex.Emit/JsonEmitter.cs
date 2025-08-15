@@ -6,22 +6,23 @@ namespace CdIndex.Emit;
 
 public static class JsonEmitter
 {
-    private static readonly JsonSerializerOptions s_options = CreateOptions();
+    private static readonly JsonSerializerOptions s_compact = CreateOptions(writeIndented: false);
+    private static readonly JsonSerializerOptions s_pretty = CreateOptions(writeIndented: true);
 
-    public static void Emit(ProjectIndex projectIndex, Stream stream)
+    public static void Emit(ProjectIndex projectIndex, Stream stream, bool pretty = true)
     {
         using var _ = InvariantCultureScope.Enter();
 
         // Order all collections for deterministic output
         var orderedIndex = OrderCollections(projectIndex);
 
-        JsonSerializer.Serialize(stream, orderedIndex, s_options);
+        JsonSerializer.Serialize(stream, orderedIndex, pretty ? s_pretty : s_compact);
     }
 
-    public static string EmitString(ProjectIndex projectIndex)
+    public static string EmitString(ProjectIndex projectIndex, bool pretty = true)
     {
         using var stream = new MemoryStream();
-        Emit(projectIndex, stream);
+        Emit(projectIndex, stream, pretty);
         stream.Position = 0;
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
@@ -106,19 +107,38 @@ public static class JsonEmitter
             orderedDI,
             orderedEntrypoints,
             index.MessageFlow,
-            index.Callgraphs,
+            // Order callgraphs: sections by Project.Name then graphs by Root then edges by Caller+Callee
+            Orderer.Sort(index.Callgraphs.Select(sec => new CallgraphsSection(
+                    sec.Project,
+                    Orderer.Sort(sec.Graphs.Select(g => new Callgraph(
+                        g.Root,
+                        g.Depth,
+                        g.Truncated,
+                        Orderer.Sort(
+                            g.Edges,
+                            Comparer<CallEdge>.Create((a, b) =>
+                            {
+                                var c = string.Compare(a.Caller, b.Caller, StringComparison.Ordinal);
+                                if (c != 0) return c;
+                                return string.Compare(a.Callee, b.Callee, StringComparison.Ordinal);
+                            }))
+                    )),
+                        Comparer<Callgraph>.Create((a, b) => string.Compare(a.Root, b.Root, StringComparison.Ordinal)))
+                )),
+                Comparer<CallgraphsSection>.Create((a, b) => string.Compare(a.Project.Name, b.Project.Name, StringComparison.Ordinal))
+            ),
             orderedConfigs,
             index.Commands,
             index.Tests
         );
     }
 
-    private static JsonSerializerOptions CreateOptions()
+    private static JsonSerializerOptions CreateOptions(bool writeIndented)
     {
         var options = new JsonSerializerOptions
         {
             PropertyNamingPolicy = null, // Use PascalCase (default)
-            WriteIndented = false, // Compact output
+            WriteIndented = writeIndented,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 

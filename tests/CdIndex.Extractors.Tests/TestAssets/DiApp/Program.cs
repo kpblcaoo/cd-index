@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
+namespace TestDiApp;
+
 public interface IFoo { }
 public sealed class Foo : IFoo { }
 

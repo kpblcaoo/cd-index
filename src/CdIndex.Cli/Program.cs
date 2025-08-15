@@ -40,6 +40,12 @@ Options:
     --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
     --flow-method <MethodName>       Handler method name for flow (default HandleAsync)
     --flow-delegate-suffixes <list>  Comma/space list of type suffixes treated as delegates (default Router,Facade,Service,Dispatcher,Processor,Manager,Module)
+    --scan-callgraphs / --no-scan-callgraphs     Enable/disable callgraph extraction (default off)
+    --callgraph-method <MethodId>   Root method for callgraph (repeatable). Format: Namespace.Type.Method(/argCount optional) or Namespace.Type..ctor(/argCount)
+    --max-call-depth <N>            Max traversal depth (default 2)
+    --max-call-nodes <N>            Max distinct nodes visited (default 200)
+    --include-external              Include external (out-of-solution) callees as leaf nodes
+    --no-pretty                     Emit compact JSON (default pretty indented)
     --verbose                        Verbose diagnostics to stderr
     -h, --help                       Show this help
 ";
@@ -78,36 +84,48 @@ Options:
         {
             if (args.Length == 1 || args.Skip(1).Any(IsHelp))
             {
-                Console.WriteLine("Usage: cd-index config <init|print> [options]\n  init  Generate cd-index.toml (use --force to overwrite)\n  print Show merged configuration (after defaults+TOML; CLI overrides not applied here yet)." );
+                Console.WriteLine("Usage: cd-index config <init|print|example> [options]\n  init     Generate cd-index.toml (use --force to overwrite)\n  print    Show merged configuration (after defaults+TOML; CLI overrides not applied here yet)\n  example  Print rich commented example (defaults only, ignores existing file).");
                 return 0;
             }
             var sub = args[1];
             switch (sub)
             {
                 case "init":
-                {
-                    var force = args.Contains("--force");
-                    var path = args.Skip(2).FirstOrDefault(a => a == "--path") != null ? args.SkipWhile(a => a != "--path").Skip(1).FirstOrDefault() : null;
-                    path ??= Path.Combine(Directory.GetCurrentDirectory(), "cd-index.toml");
-                    if (File.Exists(path) && !force)
                     {
-                        Console.Error.WriteLine($"Config file '{path}' already exists. Use --force to overwrite.");
-                        return 8;
+                        var force = args.Contains("--force");
+                        var path = args.Skip(2).FirstOrDefault(a => a == "--path") != null ? args.SkipWhile(a => a != "--path").Skip(1).FirstOrDefault() : null;
+                        path ??= Path.Combine(Directory.GetCurrentDirectory(), "cd-index.toml");
+                        if (File.Exists(path) && !force)
+                        {
+                            Console.Error.WriteLine($"Config file '{path}' already exists. Use --force to overwrite.");
+                            return 8;
+                        }
+                        var defaults = Config.ScanConfig.Defaults();
+                        File.WriteAllText(path, Config.ConfigExampleBuilder.Build(defaults));
+                        Console.WriteLine($"Written template config to {path}");
+                        return 0;
                     }
-                    var defaults = Config.ScanConfig.Defaults();
-                    File.WriteAllText(path, ConfigTemplate(defaults));
-                    Console.WriteLine($"Written template config to {path}");
-                    return 0;
-                }
                 case "print":
-                {
-                    string? explicitPath = null;
-                    for (int i=2;i<args.Length;i++) if (args[i]=="--config" && i+1<args.Length) explicitPath = args[++i];
-                    var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
-                    foreach (var d in diags) Console.Error.WriteLine(d);
-                    Console.WriteLine(ConfigTemplate(cfg));
-                    return 0;
-                }
+                    {
+                        string? explicitPath = null;
+                        for (int i = 2; i < args.Length; i++)
+                        {
+                            if (args[i] == "--config" && i + 1 < args.Length)
+                            {
+                                explicitPath = args[++i];
+                            }
+                        }
+                        var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
+                        foreach (var d in diags) Console.Error.WriteLine(d);
+                        Console.WriteLine(Config.ConfigExampleBuilder.Build(cfg));
+                        return 0;
+                    }
+                case "example":
+                    {
+                        var defaults = Config.ScanConfig.Defaults();
+                        Console.WriteLine(Config.ConfigExampleBuilder.Build(defaults));
+                        return 0;
+                    }
                 default:
                     Console.Error.WriteLine($"Unknown config subcommand '{sub}'");
                     return 5;
@@ -133,6 +151,8 @@ Options:
             string? commandConflictReport = null;
             var locMode = "physical";
             bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
+            bool scanCallgraphs = false;
+            bool noPretty = false;
             string? flowHandler = null; string flowMethod = "HandleAsync"; string? flowDelegateSuffixes = null;
             var envPrefixes = new List<string>();
             var commandRouterNames = new List<string>();
@@ -143,13 +163,16 @@ Options:
             var commandInclude = new List<string>();
             string? commandAllowRegex = null;
             bool diDedupe = false;
-        string? configPath = null;
-        for (int i = 1; i < args.Length; i++)
+            // Callgraph options
+            var callgraphMethods = new List<string>();
+            int? maxCallDepth = null; int? maxCallNodes = null; bool includeExternal = false;
+            string? configPath = null;
+            for (int i = 1; i < args.Length; i++)
             {
                 var a = args[i];
                 switch (a)
                 {
-            case "--config": if (i + 1 < args.Length) configPath = args[++i]; else return 5; break;
+                    case "--config": if (i + 1 < args.Length) configPath = args[++i]; else return 5; break;
                     case "--sln": if (i + 1 < args.Length) slnPath = args[++i]; else return 5; break;
                     case "--csproj": if (i + 1 < args.Length) csprojPath = args[++i]; else return 5; break;
                     case "--out": if (i + 1 < args.Length) outFile = new FileInfo(args[++i]); else return 5; break;
@@ -210,6 +233,13 @@ Options:
                     case "--flow-handler": if (i + 1 < args.Length) flowHandler = args[++i]; else return 5; break;
                     case "--flow-method": if (i + 1 < args.Length) flowMethod = args[++i]; else return 5; break;
                     case "--flow-delegate-suffixes": if (i + 1 < args.Length) flowDelegateSuffixes = args[++i]; else return 5; break;
+                    case "--scan-callgraphs": scanCallgraphs = true; break;
+                    case "--no-scan-callgraphs": scanCallgraphs = false; break;
+                    case "--callgraph-method": if (i + 1 < args.Length) { callgraphMethods.Add(args[++i]); } else return 5; break;
+                    case "--max-call-depth": if (i + 1 < args.Length && int.TryParse(args[++i], out var mcd)) maxCallDepth = mcd; else return 5; break;
+                    case "--max-call-nodes": if (i + 1 < args.Length && int.TryParse(args[++i], out var mcn)) maxCallNodes = mcn; else return 5; break;
+                    case "--include-external": includeExternal = true; break;
+                    case "--no-pretty": noPretty = true; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -265,11 +295,12 @@ Options:
                         case "configs": scanConfigs = true; break;
                         case "commands": scanCommands = true; break;
                         case "messageflow": scanFlow = true; break;
-                        case "callgraphs": /* placeholder */ break;
+                        case "callgraphs": scanCallgraphs = true; break;
                         default: Console.Error.WriteLine($"WARN: unknown section '{s}' ignored"); break;
                     }
                 }
             }
+            if (callgraphMethods.Count > 0) scanCallgraphs = true; // auto-enable
             // Load config (merge defaults + TOML). CLI overrides applied below manually (phase 2 TODO).
             var repoRoot = slnPath != null ? Path.GetDirectoryName(Path.GetFullPath(slnPath))! : Directory.GetCurrentDirectory();
             var (cfg, cfgSource, loadDiags) = ConfigLoader.Load(configPath, repoRoot, verbose);
@@ -322,7 +353,13 @@ Options:
                 flowDelegateSuffixes != null ? flowDelegateSuffixes.Split(',', ' ', StringSplitOptions.RemoveEmptyEntries) : null,
                 commandInclude,
                 diDedupe,
-                commandAllowRegex);
+                commandAllowRegex,
+                scanCallgraphs,
+                callgraphMethods,
+                maxCallDepth,
+                maxCallNodes,
+                includeExternal,
+                noPretty);
             return code;
         }
 
@@ -351,37 +388,5 @@ Options:
         return 0;
     }
 
-    private static string ConfigTemplate(Config.ScanConfig cfg)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("# cd-index configuration (TOML)");
-        sb.AppendLine("[scan]");
-        sb.AppendLine($"ignore = [{string.Join(',', cfg.Scan.Ignore.Select(s=>Quote(s)))}]");
-        sb.AppendLine($"ext = [{string.Join(',', cfg.Scan.Ext.Select(s=>Quote(s)))}]");
-        sb.AppendLine($"noTree = {cfg.Scan.NoTree.ToString().ToLowerInvariant()}");
-        sb.AppendLine($"sections = [{string.Join(',', cfg.Scan.Sections.Select(s=>Quote(s)))}]");
-        sb.AppendLine();
-        sb.AppendLine("[tree]");
-        sb.AppendLine($"locMode = \"{cfg.Tree.LocMode}\"");
-        sb.AppendLine($"useGitignore = {cfg.Tree.UseGitignore.ToString().ToLowerInvariant()}");
-        sb.AppendLine();
-        sb.AppendLine("[di]");
-        sb.AppendLine($"dedupe = \"{cfg.DI.Dedupe}\"");
-        sb.AppendLine();
-        sb.AppendLine("[commands]");
-        sb.AppendLine($"include = [{string.Join(',', cfg.Commands.Include.Select(Quote))}]");
-        sb.AppendLine($"attrNames = [{string.Join(',', cfg.Commands.AttrNames.Select(Quote))}]");
-        sb.AppendLine($"routerNames = [{string.Join(',', cfg.Commands.RouterNames.Select(Quote))}]");
-        sb.AppendLine($"normalize = [{string.Join(',', cfg.Commands.Normalize.Select(Quote))}]");
-        sb.AppendLine($"allowRegex = \"{cfg.Commands.AllowRegex}\"");
-        sb.AppendLine($"dedup = \"{cfg.Commands.Dedup}\"");
-        sb.AppendLine($"conflicts = \"{cfg.Commands.Conflicts}\"");
-        sb.AppendLine();
-        sb.AppendLine("[flow]");
-    sb.AppendLine("handler = " + (cfg.Flow.Handler!=null ? Quote(cfg.Flow.Handler) : "null"));
-        sb.AppendLine($"method = \"{cfg.Flow.Method}\"");
-        sb.AppendLine($"delegateSuffixes = [{string.Join(',', cfg.Flow.DelegateSuffixes.Select(Quote))}]");
-        return sb.ToString();
-    }
-    private static string Quote(string s) => $"\"{s}\"";
+    // Legacy inline template removed – now uses ConfigExampleBuilder.
 }

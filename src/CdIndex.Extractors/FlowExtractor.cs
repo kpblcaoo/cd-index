@@ -174,9 +174,9 @@ public sealed class FlowExtractor : IExtractor
 
     private void ProcessMethod(MethodDeclarationSyntax method, RoslynContext ctx, SemanticModel model)
     {
-    if (method.Body == null) return; // expression-bodied handled earlier
+        if (method.Body == null) return; // expression-bodied handled earlier
         foreach (var stmt in method.Body.Statements)
-            ProcessTopLevelStatement(stmt, ctx, model, depth:0);
+            ProcessTopLevelStatement(stmt, ctx, model, depth: 0);
     }
 
     // Process a statement as if it were top-level; flatten certain wrappers (try, block, using) one level deep only.

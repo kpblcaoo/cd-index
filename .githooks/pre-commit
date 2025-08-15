@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Auto-format C# code before commit; restage if changed.
+if command -v dotnet >/dev/null 2>&1; then
+  dotnet format --verify-no-changes || {
+    echo "[pre-commit] Formatting applied" >&2
+    dotnet format >/dev/null || true
+    git add .
+  }
+fi

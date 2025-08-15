@@ -16,37 +16,50 @@ public sealed class DiExtractorTests
     {
         // Arrange
         var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
-        var extractor = new DiExtractor();
+        var debug = new System.Text.StringBuilder();
+        var extractor = new DiExtractor(debugLog: debug);
 
         // Act
         extractor.Extract(ctx);
+
+        foreach (var line in debug.ToString().Split('\n'))
+            if (!string.IsNullOrWhiteSpace(line)) Console.WriteLine("[DBGREG] " + line.Trim());
 
         // Assert - Check registrations
         var registrations = extractor.Registrations;
         Assert.NotEmpty(registrations);
 
+        // Diagnostic dump to aid debugging of missing factory registration
+        Console.WriteLine("[REGDUMP] " + string.Join(" || ", registrations.Select(r => $"{r.Interface}->{r.Implementation}:{r.Lifetime}@{r.File}:{r.Line}")));
+        // Assert no global:: prefixes leak
+        Assert.DoesNotContain(registrations, r => r.Interface.Contains("global::") || r.Implementation.Contains("global::"));
+
         // Find specific registrations
-        var fooSingleton = registrations.FirstOrDefault(r => 
-            r.Interface == "IFoo" && r.Implementation == "Foo" && r.Lifetime == "Singleton");
-        Assert.NotNull(fooSingleton);
+        var fooSingleton = registrations.FirstOrDefault(r =>
+            r.Interface == "TestDiApp.IFoo" && r.Implementation == "TestDiApp.Foo" && r.Lifetime == "Singleton");
+        if (fooSingleton == null)
+        {
+            var dump = string.Join(" | ", registrations.Select(r => $"{r.Interface}->{r.Implementation}:{r.Lifetime}"));
+            Assert.Fail("Missing fooSingleton. Dump: " + dump);
+        }
         Assert.Contains("DiApp/Program.cs", fooSingleton.File);
         Assert.True(fooSingleton.Line > 0);
 
-        var barScoped = registrations.FirstOrDefault(r => 
-            r.Interface == "IBar" && r.Implementation == "Bar" && r.Lifetime == "Scoped");
+        var barScoped = registrations.FirstOrDefault(r =>
+            r.Interface == "TestDiApp.IBar" && r.Implementation == "TestDiApp.Bar" && r.Lifetime == "Scoped");
         Assert.NotNull(barScoped);
         Assert.Contains("DiApp/Program.cs", barScoped.File);
 
-        var bazTransient = registrations.FirstOrDefault(r => 
-            r.Interface == "Baz" && r.Implementation == "Baz" && r.Lifetime == "Transient");
+        var bazTransient = registrations.FirstOrDefault(r =>
+            r.Interface == "TestDiApp.Baz" && r.Implementation == "TestDiApp.Baz" && r.Lifetime == "Transient");
         Assert.NotNull(bazTransient);
         Assert.Contains("DiApp/Program.cs", bazTransient.File);
 
         // Factory registration - should be IFoo -> Foo or IFoo -> (factory)
-        var fooFactory = registrations.Where(r => 
-            r.Interface == "IFoo" && r.Lifetime == "Singleton" && r != fooSingleton).FirstOrDefault();
+        var fooFactory = registrations.Where(r =>
+            r.Interface == "TestDiApp.IFoo" && r.Lifetime == "Singleton" && r != fooSingleton).FirstOrDefault();
         Assert.NotNull(fooFactory);
-        Assert.True(fooFactory.Implementation == "Foo" || fooFactory.Implementation == "(factory)");
+        Assert.Equal("TestDiApp.Foo", fooFactory.Implementation);
     }
 
     [Fact]
@@ -63,7 +76,7 @@ public sealed class DiExtractorTests
         var hostedServices = extractor.HostedServices;
         Assert.NotEmpty(hostedServices);
 
-        var myHosted = hostedServices.FirstOrDefault(h => h.Type == "MyHosted");
+        var myHosted = hostedServices.FirstOrDefault(h => h.Type.EndsWith("MyHosted"));
         Assert.NotNull(myHosted);
         Assert.Contains("DiApp/Program.cs", myHosted.File);
         Assert.True(myHosted.Line > 0);
@@ -191,7 +204,7 @@ public sealed class ConfigExtractorTests
     public async Task ConfigExtractor_CustomPrefix()
     {
         var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
-        var extractor = new ConfigExtractor(new[]{"DOORMAN_", "MYAPP_"});
+        var extractor = new ConfigExtractor(new[] { "DOORMAN_", "MYAPP_" });
         extractor.Extract(ctx);
         var section = extractor.CreateSection();
         Assert.Contains("DOORMAN_BOT_API", section.EnvKeys);
@@ -221,7 +234,7 @@ public sealed class CommandsExtractorTests
         Assert.True(items.Count(i => i.Command == "/start" && i.Handler == "StartHandler") == 1, "/start duplicate detected");
         // Sorted
         var sorted = items.OrderBy(i => i.Command, StringComparer.Ordinal).ThenBy(i => i.Handler, StringComparer.Ordinal).ToList();
-    Assert.Equal(sorted.Select(x => x.Command + "|" + x.Handler), items.Select(x => x.Command + "|" + x.Handler));
+        Assert.Equal(sorted.Select(x => x.Command + "|" + x.Handler), items.Select(x => x.Command + "|" + x.Handler));
     }
 
     [Fact]
@@ -229,7 +242,7 @@ public sealed class CommandsExtractorTests
     {
         var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
         // Provide a custom list including existing defaults to ensure no regression
-    var extractor = new CommandsExtractor(new[] { "Map", "Register", "Add", "On", "Route", "Bind", "Hook" });
+        var extractor = new CommandsExtractor(new[] { "Map", "Register", "Add", "On", "Route", "Bind", "Hook" });
         extractor.Extract(ctx);
         var items = extractor.Items;
         Assert.Contains(items, i => i.Command == "/stats" && i.Handler == "StatsHandler");
@@ -273,10 +286,10 @@ public sealed class FlowExtractorTests
         extractor.Extract(ctx);
         var nodes = extractor.Nodes;
         // New behavior: no explicit return nodes inside guards, so expected sequence shrinks
-    // Collapse heuristic turns 'if(IsCommand()){ Router.Handle(); return; }' into only delegate (no guard for that one)
-    string[] expectedKinds = { "guard", "guard", "delegate", "guard", "delegate", "delegate" };
-    string[] expectedDetailsStarts = { "IsWhitelisted()", "IsDisabled()", "Router.Handle", "IsPrivate()", "JoinFacade.Handle", "ModerationService.Check" };
-    Assert.Equal(expectedKinds.Length, nodes.Count);
+        // Collapse heuristic turns 'if(IsCommand()){ Router.Handle(); return; }' into only delegate (no guard for that one)
+        string[] expectedKinds = { "guard", "guard", "delegate", "guard", "delegate", "delegate" };
+        string[] expectedDetailsStarts = { "IsWhitelisted()", "IsDisabled()", "Router.Handle", "IsPrivate()", "JoinFacade.Handle", "ModerationService.Check" };
+        Assert.Equal(expectedKinds.Length, nodes.Count);
         for (int i = 0; i < expectedKinds.Length; i++)
         {
             Assert.Equal(expectedKinds[i], nodes[i].Kind);
@@ -313,8 +326,8 @@ public sealed class FlowExtractorTests
         var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
         var extractor = new FlowExtractor("MessageHandler", "HandleAsync"); // ambiguous simple name
         extractor.Extract(ctx);
-    // Fallback should choose the deterministic (global namespace) handler variant producing 6 nodes
-    Assert.Equal(6, extractor.Nodes.Count);
+        // Fallback should choose the deterministic (global namespace) handler variant producing 6 nodes
+        Assert.Equal(6, extractor.Nodes.Count);
     }
 
     // Placeholder for future Switch & instance invocation test removed for stability.

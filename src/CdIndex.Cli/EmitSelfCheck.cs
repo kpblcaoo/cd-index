@@ -83,7 +83,7 @@ class EmitSelfCheck
             scanTreeOnly ? new List<DISection>() : new List<DISection> { diSection },
             scanTreeOnly ? new List<EntrypointsSection>() : entrypointsSections,
             scanTreeOnly ? new List<MessageFlowSection>() : new List<MessageFlowSection>(),
-            scanTreeOnly ? new List<CallgraphSection>() : new List<CallgraphSection>(),
+            scanTreeOnly ? new List<CallgraphsSection>() : new List<CallgraphsSection>(),
             scanTreeOnly ? new List<ConfigSection>() : new List<ConfigSection>(),
             scanTreeOnly ? new List<CommandSection>() : new List<CommandSection>(),
             scanTreeOnly ? new List<TestSection>() : new List<TestSection>()

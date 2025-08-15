@@ -1,5 +1,7 @@
 name: ci
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,6 +17,14 @@ jobs:
       - run: dotnet test -c Release --nologo --collect:"XPlat Code Coverage"
       - run: dotnet run --project src/CdIndex.Cli -- --selfcheck > out.json
       - run: test -f out.json && echo "selfcheck ok"
+      - name: Generate config example
+        run: dotnet run --project src/CdIndex.Cli -- config example > config.example.toml.generated
+      - name: Diff config example
+        run: |
+          if ! diff -u config.example.toml config.example.toml.generated; then
+            echo 'config.example.toml is out of sync. Run: cd-index config example > config.example.toml';
+            exit 1;
+          fi
   build-windows:
     runs-on: windows-latest
     steps:
@@ -31,3 +41,10 @@ jobs:
         run: |
           $json = Get-Content out-win.json -Raw
           if ($json -match '\\') { throw "Backslashes found in JSON paths" }
+      - name: Generate config example (Windows)
+        run: dotnet run --project src/CdIndex.Cli -- config example > config.example.toml.generated
+      - name: Diff config example (Windows)
+        shell: pwsh
+        run: |
+          if ((Compare-Object (Get-Content config.example.toml) (Get-Content config.example.toml.generated))) {
+            Write-Host 'config.example.toml out of sync'; exit 1 }

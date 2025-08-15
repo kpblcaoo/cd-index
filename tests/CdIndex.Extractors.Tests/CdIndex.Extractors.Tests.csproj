@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="TestAssets/**/*.cs" />
-    <None Include="TestAssets/**/*" CopyToOutputDirectory="PreserveNewest" />
+  <Compile Remove="TestAssets/**/*.cs" />
+  <None Include="TestAssets/**/*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,69 @@
+# cd-index configuration (TOML)
+# Generated example. Lines starting with '#' are comments or disabled options.
+# Remove '#' to activate optional blocks.
+
+# --- Global scan options ---
+[scan]
+# ignore: directories / path prefixes to exclude (repo-relative).
+ignore = ["bin","obj",".git","logs","StrykerOutput","tmp"]
+# ext: additional file extensions (always include solution & project metadata separately).
+ext = [".cs",".csproj",".sln",".json",".yaml",".yml"]
+# noTree: if true, skip Tree section entirely.
+noTree = false
+# sections: explicit subset override. Valid: Tree,DI,Entrypoints,Configs,Commands,MessageFlow,Callgraphs
+sections = ["Tree","DI","Entrypoints","Configs","Commands","MessageFlow"]
+
+# --- File tree settings ---
+[tree]
+# locMode: physical (raw line endings) | logical (normalize CRLF) – currently physical & logical treated similarly except CRLF counting.
+locMode = "physical"
+# useGitignore: if true merges simple patterns from .gitignore (no negation support yet).
+useGitignore = true
+
+# --- Dependency Injection extraction ---
+[di]
+# dedupe: keep-all | keep-first (when the same service interface is registered multiple times)
+dedupe = "keep-all"
+# Example alternative:
+# dedupe = "keep-first"
+
+# --- Commands extraction ---
+[commands]
+# include: discovery modes (router,attributes,comparison). 'comparison' reserved for future diff tooling.
+include = ["router","attributes"]
+# attrNames: attribute names (without trailing Attribute) to treat as command containers.
+attrNames = ["Command","Commands"]
+# routerNames: method names on builder/route types used to register commands.
+routerNames = ["Map","Register","Add","On","Route","Bind"]
+# normalize: transforms for route values. Supported: trim,ensure-slash
+normalize = ["trim","ensure-slash"]
+# allowRegex: validation regex; null disables validation.
+allowRegex = "^/[a-z][a-z0-9_]*$"
+# dedup: case-sensitive | case-insensitive
+dedup = "case-sensitive"
+# conflicts: warn | error | ignore – how to handle duplicates after normalization.
+conflicts = "warn"
+
+# --- Message flow extraction ---
+[flow]
+# handler: fully-qualified type name of the root handler (required when enabling MessageFlow).
+handler = null
+# method: handler method name to start traversal.
+method = "HandleAsync"
+# delegateSuffixes: type name suffixes treated as delegation hubs.
+delegateSuffixes = ["Router","Facade","Service","Dispatcher","Processor","Manager","Module"]
+# Example customization:
+# delegateSuffixes = ["Router","Dispatcher"]
+
+# --- Callgraph extraction (commented – enable via CLI today) ---
+# Planned TOML section for future use. Currently configure via CLI flags: 
+#   --scan-callgraphs --callgraph-method Namespace.Type.Method(/argCount) --max-call-depth N --max-call-nodes N --include-external
+# Example prospective section (NOT parsed yet):
+# [callgraph]
+# methods = ["MyApp.Services.UserService.GetUser/1", "MyApp.Api.Program.Main/0"]
+# maxDepth = 2
+# maxNodes = 200
+# includeExternal = false
+
+# End of config.
+
