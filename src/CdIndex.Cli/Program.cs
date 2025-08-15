@@ -24,6 +24,7 @@ Options:
     --scan-configs / --no-scan-configs          Enable/disable configs extraction (default off)
     --env-prefix <P>                 Add environment variable prefix filter (repeatable, default DOORMAN_)
     --scan-commands / --no-scan-commands        Enable/disable commands extraction (default off)
+    --scan-cli-commands                         Enable System.CommandLine command model extraction (experimental)
     --commands-router-names <names>             Comma/space separated router method names (default Map,Register,Add,On,Route,Bind)
     --commands-attr-names <names>               Comma/space separated attribute names for command discovery (default Command,Commands)
     --commands-normalize <rules>                Comma/space list: trim,ensure-slash (default trim,ensure-slash)

@@ -11,6 +11,7 @@ public sealed record ProjectIndex(
     IReadOnlyList<CallgraphsSection> Callgraphs,
     IReadOnlyList<ConfigSection> Configs,
     IReadOnlyList<CommandSection> Commands,
+    IReadOnlyList<CliCommand> CliCommands,
     IReadOnlyList<TestSection> Tests
 );
 
@@ -74,6 +75,14 @@ public sealed record CommandSection(
 public sealed record CommandItem(
     string Command,
     string? Handler,
+    string File,
+    int Line
+);
+public sealed record CliCommand(
+    string Command,
+    IReadOnlyList<string> Aliases,
+    IReadOnlyList<string> Options,
+    IReadOnlyList<string> Arguments,
     string File,
     int Line
 );

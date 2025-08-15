@@ -4,7 +4,7 @@
   "title": "CD Index Project Schema",
   "description": "Schema for cd-index project structure and dependency flows",
   "type": "object",
-  "required": ["Meta", "Project", "Tree", "DI", "Entrypoints", "MessageFlow", "Callgraphs", "Configs", "Commands", "Tests"],
+  "required": ["Meta", "Project", "Tree", "DI", "Entrypoints", "MessageFlow", "Callgraphs", "Configs", "Commands", "CliCommands", "Tests"],
   "properties": {
     "Meta": {
       "type": "object",
@@ -274,6 +274,23 @@
               "additionalProperties": false
             }
           }
+        },
+        "additionalProperties": false
+      }
+    },
+    "CliCommands": {
+      "type": "array",
+      "description": "System.CommandLine command model analysis",
+      "items": {
+        "type": "object",
+        "required": ["Command", "Aliases", "Options", "Arguments", "File", "Line"],
+        "properties": {
+          "Command": { "type": "string", "description": "Primary command name" },
+          "Aliases": { "type": "array", "items": { "type": "string" }, "description": "Alternate names" },
+          "Options": { "type": "array", "items": { "type": "string" }, "description": "Option tokens (e.g. --help)" },
+          "Arguments": { "type": "array", "items": { "type": "string" }, "description": "Positional argument names" },
+          "File": { "type": "string", "description": "Repo-relative file path" },
+          "Line": { "type": "integer", "minimum": 1, "description": "Line number (1-based)" }
         },
         "additionalProperties": false
       }
