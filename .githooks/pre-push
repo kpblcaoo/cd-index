@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Ensure config example is up to date & run full tests before push.
+if command -v dotnet >/dev/null 2>&1; then
+  dotnet run --project src/CdIndex.Cli -- config example > config.example.toml.generated
+  if ! diff -q config.example.toml config.example.toml.generated >/dev/null 2>&1; then
+    echo "[pre-push] Updating config.example.toml" >&2
+    mv config.example.toml.generated config.example.toml
+    git add config.example.toml
+    echo "[pre-push] Re-run commit including updated config.example.toml if needed." >&2
+    # Do not abort push; let user decide if amend needed.
+  else
+    rm config.example.toml.generated
+  fi
+  echo "[pre-push] Running tests" >&2
+  dotnet test --nologo || { echo "[pre-push] Tests failed" >&2; exit 1; }
+fi
