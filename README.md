@@ -10,7 +10,7 @@
 	- simple comparison patterns (opt-in via `--commands-include comparison`)
 	- source gating: omit a source by excluding it from the comma list (e.g. `--commands-include router,attributes` prevents comparison-derived constants leaking).
 	- optional case-insensitive canonical conflict grouping when `--commands-dedup case-insensitive`.
-	- regex whitelist (default `^/[a-z][a-z0-9_]*$`) filters out improbable tokens (e.g. `/X-Service-Token`). Future flag `--commands-allow-regex` will allow override (currently internal; set to relaxed by editing code if needed).
+	- regex whitelist (default `^/[a-z][a-z0-9_]*$`) filters out improbable tokens (e.g. `/X-Service-Token`); override via `--commands-allow-regex <pattern>` or TOML `commands.allowRegex`.
 - DI extractor: emits full interface & implementation display names; optional duplicate suppression via `--di-dedupe`; filters out Exception-derived implementations.
 - Message flow extractor (`--scan-flow --flow-handler <Type> [--flow-method <Method>]`): linearizes top-level guards, delegate calls, returns inside specified handler method (see `README.flow.md`).
 
@@ -35,6 +35,9 @@ cd-index scan --sln path/to/CmdApp.sln --scan-commands --commands-include compar
 # Commands excluding comparison (explicitly list defaults) – equivalent to default
 cd-index scan --sln path/to/CmdApp.sln --scan-commands --commands-include router,attributes --out cmd.json
 
+# Override command allow regex (allow uppercase & dashes)
+cd-index scan --sln path/to/CmdApp.sln --scan-commands --commands-allow-regex '^/[A-Za-z][A-Za-z0-9_\-]*$' --out cmd.json
+
 # Message Flow
 cd-index scan --sln path/to/FlowApp.sln --scan-flow --flow-handler MessageHandler --flow-method HandleAsync --out flow.json
 
@@ -49,6 +52,79 @@ Self-check (deterministic minimal output):
 ```
 cd-index --selfcheck --scan-tree-only
 ```
+
+## Configuration (TOML)
+
+You can manage defaults with a `cd-index.toml` (or `.cd-index.toml`) at the repo root, or point to another file with `--config path/to/file.toml`. Environment variable `CD_INDEX_CONFIG` is a fallback when no explicit / root file is found.
+
+Precedence (highest wins):
+1. CLI flags / options
+2. TOML file values
+3. Built-in defaults
+
+Generate a starter file:
+```
+cd-index config init            # creates ./cd-index.toml (use --force to overwrite)
+```
+
+Show merged configuration (defaults + TOML; note CLI overrides are NOT applied in this print mode):
+```
+cd-index config print
+```
+
+Example snippet:
+```toml
+[scan]
+ignore = ["bin","obj",".git","tmp"]
+ext = [".cs",".json"]
+sections = ["Tree","DI","Entrypoints","Configs","Commands"]
+
+[tree]
+locMode = "physical"
+useGitignore = true
+
+[di]
+dedupe = "keep-first"            # change default behavior
+
+[commands]
+include = ["router","attributes","comparison"]
+routerNames = ["Map","Register","Bind"]
+attrNames = ["Command","Commands"]
+normalize = ["trim","ensure-slash"]
+allowRegex = "^/[A-Z]{3}$"       # only allow three uppercase letters
+dedup = "case-insensitive"
+conflicts = "error"
+
+[flow]
+handler = "MyNamespace.MessageHandler"
+method = "HandleAsync"
+delegateSuffixes = ["Router","Dispatcher","Processor"]
+```
+
+Notes:
+- Lists (e.g. `commands.include`) are replaced wholesale when present in TOML; CLI supplying a list option overrides the list again.
+- `--sections` or `--no-tree` fully override TOML `scan.sections` when provided.
+- `--commands-allow-regex` overrides TOML `commands.allowRegex`.
+- `--di-dedupe` (CLI) forces dedupe even if TOML sets `keep-all`.
+
+### Diagnostics Codes
+Verbose mode (`--verbose`) emits machine-parsable codes to stderr:
+
+Code | Area | Meaning
+---- | ---- | -------
+CFG001 | config | No config located; using built-in defaults
+CFG010 | config | Loaded config file
+CFG100 | config | TOML parser diagnostic (non-fatal)
+CFG900 | config | Load failure; fallback to defaults
+CFG901 | config | TOML parse exception; fallback to defaults
+CMD001 | commands | Enabled command sources list
+CMD002 | commands | Dedupe mode in effect
+CMD003 | commands | Custom allowRegex override in effect
+CMD300 | commands | Command conflict (case-insensitive canonicalization)
+FLW001 | flow | Flow disabled
+FLW010 | flow | Flow extraction parameters (handler/method/suffixes)
+
+You can grep stderr for these codes in CI for policy enforcement.
 
 ## Determinism
 All emitted JSON collections are sorted (ordinal). Paths are repo-relative with forward slashes. Re-running the same command yields byte-identical output except `GeneratedAt` timestamp.
