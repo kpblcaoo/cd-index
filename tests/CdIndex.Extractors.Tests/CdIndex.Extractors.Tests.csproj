@@ -18,6 +18,7 @@
     <ProjectReference Include="../../src/CdIndex.Extractors/CdIndex.Extractors.csproj" />
     <ProjectReference Include="../../src/CdIndex.Roslyn/CdIndex.Roslyn.csproj" />
     <ProjectReference Include="../../src/CdIndex.Core/CdIndex.Core.csproj" />
+  <ProjectReference Include="../../src/CdIndex.Cli/CdIndex.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>
