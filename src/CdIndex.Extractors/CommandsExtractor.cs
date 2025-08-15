@@ -20,11 +20,15 @@ public sealed class CommandsExtractor : IExtractor
     private readonly Dictionary<string, List<CommandItem>> _canonicalGroups = new(StringComparer.Ordinal); // key: lower(command)
     private readonly List<CommandConflict> _conflicts = new();
     private readonly bool _includeComparisons;
+    private readonly bool _includeRouter;
+    private readonly bool _includeAttributes;
+    private readonly System.Text.RegularExpressions.Regex? _allowRegex;
 
     public CommandsExtractor(IEnumerable<string>? routerNames = null, IEnumerable<string>? attrNames = null)
-        : this(routerNames, attrNames, caseInsensitive: false, allowBare: false, normalizeTrim: true, normalizeEnsureSlash: true) { }
+        : this(routerNames, attrNames, caseInsensitive: false, allowBare: false, normalizeTrim: true, normalizeEnsureSlash: true, includeRouter: true, includeAttributes: true, includeComparisons: true, allowRegex: null) { }
 
-    public CommandsExtractor(IEnumerable<string>? routerNames, IEnumerable<string>? attrNames, bool caseInsensitive, bool allowBare, bool normalizeTrim, bool normalizeEnsureSlash, bool includeComparisons = true)
+    public CommandsExtractor(IEnumerable<string>? routerNames, IEnumerable<string>? attrNames, bool caseInsensitive, bool allowBare, bool normalizeTrim, bool normalizeEnsureSlash,
+        bool includeRouter, bool includeAttributes, bool includeComparisons, string? allowRegex)
     {
         _routerNames = new HashSet<string>((routerNames ?? new[] { "Map", "Register", "Add", "On", "Route", "Bind" }), StringComparer.Ordinal);
         _attrNames = new HashSet<string>((attrNames ?? new[] { "Command", "Commands" }).Select(a => a.EndsWith("Attribute", StringComparison.Ordinal) ? a[..^9] : a), StringComparer.Ordinal);
@@ -32,7 +36,10 @@ public sealed class CommandsExtractor : IExtractor
         _allowBare = allowBare || normalizeEnsureSlash; // we can accept bare if we'll add slash
         _normalizeTrim = normalizeTrim;
         _normalizeEnsureSlash = normalizeEnsureSlash;
+        _includeRouter = includeRouter;
+        _includeAttributes = includeAttributes;
         _includeComparisons = includeComparisons;
+        _allowRegex = string.IsNullOrWhiteSpace(allowRegex) ? null : new System.Text.RegularExpressions.Regex(allowRegex!, System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
     }
 
     public IReadOnlyList<CommandItem> Items => _items;
@@ -54,11 +61,15 @@ public sealed class CommandsExtractor : IExtractor
                 var semantic = doc.GetSemanticModelAsync().Result;
                 if (semantic == null) continue;
 
-                CollectRouterRegistrations(root, semantic, context);
+                if (_includeRouter)
+                    CollectRouterRegistrations(root, semantic, context);
                 if (_includeComparisons)
                     CollectComparisons(root, semantic, context);
-                CollectHandlerProperties(root, semantic, context); // pattern: property CommandName => "start"
-                CollectHandlerAttributes(root, semantic, context); // pattern: [Command("/start"), Commands("/a","/b")]
+                if (_includeAttributes)
+                {
+                    CollectHandlerProperties(root, semantic, context); // pattern: property CommandName => "start"
+                    CollectHandlerAttributes(root, semantic, context); // pattern: [Command("/start"), Commands("/a","/b")]
+                }
             }
         }
         _items.Sort(static (a, b) =>
@@ -376,7 +387,8 @@ public sealed class CommandsExtractor : IExtractor
     {
         var norm = Normalize(command);
         if (norm == null) return;
-        if (!_seen.Add((norm, handler))) return;
+    if (_allowRegex != null && !_allowRegex.IsMatch(norm)) return; // regex gate
+    if (!_seen.Add((norm, handler))) return; // dedupe (command, handler)
         var item = new CommandItem(norm, handler, file, line);
         _items.Add(item);
     // defer conflict grouping until end

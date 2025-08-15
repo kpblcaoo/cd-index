@@ -169,15 +169,21 @@ internal static class ScanCommand
                 var commandDedupMode = commandDedup; // null -> case-sensitive
                 var normTrim = commandNormalize == null || commandNormalize.Count == 0 || commandNormalize.Contains("trim", StringComparer.OrdinalIgnoreCase);
                 var normSlash = commandNormalize == null || commandNormalize.Count == 0 || commandNormalize.Contains("ensure-slash", StringComparer.OrdinalIgnoreCase);
-        bool includeComparison = commandsInclude != null && commandsInclude.Any(i => string.Equals(i, "comparison", StringComparison.OrdinalIgnoreCase));
+                bool includeComparison = commandsInclude != null && commandsInclude.Any(i => string.Equals(i, "comparison", StringComparison.OrdinalIgnoreCase));
+                bool includeRouter = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "router", StringComparison.OrdinalIgnoreCase));
+                bool includeAttributes = commandsInclude == null || commandsInclude.Count == 0 || commandsInclude.Any(i => string.Equals(i, "attributes", StringComparison.OrdinalIgnoreCase));
+                var allowRegex = "^/[a-z][a-z0-9_]*$"; // default conservative pattern
                 var cmdExtractor = new CommandsExtractor(
                     commandRouterNames != null && commandRouterNames.Count > 0 ? commandRouterNames : null,
                     commandAttrNames != null && commandAttrNames.Count > 0 ? commandAttrNames : null,
                     caseInsensitive: commandDedupMode == "case-insensitive" || commandDedupMode == "ci",
-            allowBare: false,
-            normalizeTrim: normTrim,
+                    allowBare: false,
+                    normalizeTrim: normTrim,
                     normalizeEnsureSlash: normSlash,
-                    includeComparisons: includeComparison);
+                    includeRouter: includeRouter,
+                    includeAttributes: includeAttributes,
+                    includeComparisons: includeComparison,
+                    allowRegex: allowRegex);
                 cmdExtractor.Extract(roslyn);
                 var conflictsMode = (commandConflicts ?? "warn").ToLowerInvariant();
                 if (cmdExtractor.Conflicts.Count > 0)

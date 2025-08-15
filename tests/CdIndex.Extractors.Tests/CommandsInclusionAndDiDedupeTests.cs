@@ -18,7 +18,17 @@ public sealed class CommandsInclusionAndDiDedupeTests
     {
         var ctx = await SolutionLoader.LoadSolutionAsync(CmdSln, TestRepoRoot);
         // Default extractor includes comparisons (legacy). New behavior: we simulate CLI gating by constructing with includeComparisons:false
-        var extractor = new CommandsExtractor(null, null, caseInsensitive:false, allowBare:false, normalizeTrim:true, normalizeEnsureSlash:true, includeComparisons:false);
+        var extractor = new CommandsExtractor(
+            routerNames: null,
+            attrNames: null,
+            caseInsensitive: false,
+            allowBare: false,
+            normalizeTrim: true,
+            normalizeEnsureSlash: true,
+            includeRouter: true,
+            includeAttributes: true,
+            includeComparisons: false,
+            allowRegex: "^/[a-z][a-z0-9_]*$");
         extractor.Extract(ctx);
         // Commands that only appear via comparison patterns in Program.cs: /help, /about, /ban
         Assert.DoesNotContain(extractor.Items, i => i.Command == "/help");
@@ -30,7 +40,17 @@ public sealed class CommandsInclusionAndDiDedupeTests
     public async Task Commands_WithComparison_Includes()
     {
         var ctx = await SolutionLoader.LoadSolutionAsync(CmdSln, TestRepoRoot);
-        var extractor = new CommandsExtractor(null, null, caseInsensitive:false, allowBare:false, normalizeTrim:true, normalizeEnsureSlash:true, includeComparisons:true);
+        var extractor = new CommandsExtractor(
+            routerNames: null,
+            attrNames: null,
+            caseInsensitive: false,
+            allowBare: false,
+            normalizeTrim: true,
+            normalizeEnsureSlash: true,
+            includeRouter: true,
+            includeAttributes: true,
+            includeComparisons: true,
+            allowRegex: "^/[a-z][a-z0-9_]*$");
         extractor.Extract(ctx);
         Assert.Contains(extractor.Items, i => i.Command == "/help");
         Assert.Contains(extractor.Items, i => i.Command == "/about");
