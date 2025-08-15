@@ -1,0 +1,32 @@
+# cd-index configuration for cd-index repository itself
+
+[scan]
+ignore = ["bin","obj",".git",".github","logs","tmp","TestResults"]
+ext = [".cs", ".csproj", ".sln", ".json", ".yaml", ".yml"]
+# Keep tree + DI + Entrypoints + Configs; enable cli commands extraction
+sections = ["Tree","DI","Entrypoints","Configs","CliCommands"]
+noTree = false
+
+[tree]
+locMode = "physical"
+useGitignore = true
+
+[di]
+dedupe = "keep-all"
+
+[commands]
+# Chat-style commands disabled unless explicitly requested (not included in sections)
+include = ["router","attributes"]
+attrNames = ["Command","Commands"]
+routerNames = ["Map","Register","Add","On","Route","Bind"]
+normalize = ["trim","ensure-slash"]
+allowRegex = "^/[a-z][a-z0-9_]*$"
+dedup = "case-sensitive"
+conflicts = "warn"
+
+[flow]
+# Disabled (not in sections) but defaults provided
+method = "HandleAsync"
+# handler left null intentionally
+
+# Future: callgraphs / tests sections could be added here
