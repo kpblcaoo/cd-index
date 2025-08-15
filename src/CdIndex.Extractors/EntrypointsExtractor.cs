@@ -10,6 +10,12 @@ namespace CdIndex.Extractors;
 
 public sealed class EntrypointsExtractor : IExtractor
 {
+    // Reuse deterministic full qualification similar to DI extractor (without global::, include namespaces & containing types)
+    private static readonly SymbolDisplayFormat FullNoGlobal = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
     private readonly List<EntrypointsSection> _sections = new();
     private readonly HashSet<(string Type, string File, int Line)> _seedHosted = new();
     public IReadOnlyList<EntrypointsSection> Sections => _sections;
@@ -55,7 +61,7 @@ public sealed class EntrypointsExtractor : IExtractor
                             : normalized;
                         var (file, line) = LocationUtil.GetLocation(node ?? syntaxRef.GetSyntax(), context);
                         // Type name might be synthesized (<Program>$) so only include if not compiler generated pattern
-                        var typeName = entry.ContainingType?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+                        var typeName = entry.ContainingType?.ToDisplayString(FullNoGlobal);
                         programMain = new ProgramMain(file, line, typeName);
                     }
                 }
@@ -141,7 +147,7 @@ public sealed class EntrypointsExtractor : IExtractor
                         }
                         var (file, line) = LocationUtil.GetLocation(m, ctx);
                         var symbol = semantic.GetDeclaredSymbol(cls);
-                        var typeName = symbol?.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+                        var typeName = symbol?.ToDisplayString(FullNoGlobal);
                         return new ProgramMain(file, line, typeName);
                     }
                 }
@@ -161,12 +167,16 @@ public sealed class EntrypointsExtractor : IExtractor
             string? typeName = null;
             if (symbol != null && symbol.IsGenericMethod && symbol.TypeArguments.Length == 1)
             {
-                typeName = symbol.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+                typeName = symbol.TypeArguments[0].ToDisplayString(FullNoGlobal);
             }
             else if (invocation.Expression is MemberAccessExpressionSyntax mae && invocation.DescendantNodes().OfType<GenericNameSyntax>().FirstOrDefault() is GenericNameSyntax g && g.TypeArgumentList.Arguments.Count == 1)
             {
                 // Fallback: syntactic generic AddHostedService<MyType>() when semantic failed
-                typeName = g.TypeArgumentList.Arguments[0].ToString();
+                // Attempt to get semantic symbol for fallback for full qualification
+                var typeSyntax = g.TypeArgumentList.Arguments[0];
+                var model = semantic.Compilation.GetSemanticModel(typeSyntax.SyntaxTree);
+                var sym = model.GetTypeInfo(typeSyntax).Type;
+                typeName = sym?.ToDisplayString(FullNoGlobal) ?? typeSyntax.ToString();
             }
             if (typeName == null) continue;
             var (file, line) = LocationUtil.GetLocation(invocation, ctx);
