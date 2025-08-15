@@ -4,15 +4,15 @@ namespace CdIndex.Core;
 public sealed record ProjectIndex(
     Meta Meta,
     IReadOnlyList<ProjectSection> Project,
-    IReadOnlyList<TreeSection> Tree,
-    IReadOnlyList<DISection> DI,
-    IReadOnlyList<EntrypointsSection> Entrypoints,
-    IReadOnlyList<MessageFlowSection> MessageFlow,
-    IReadOnlyList<CallgraphsSection> Callgraphs,
-    IReadOnlyList<ConfigSection> Configs,
-    IReadOnlyList<CommandSection> Commands,
+    IReadOnlyList<TreeSection>? Tree,
+    IReadOnlyList<DISection>? DI,
+    IReadOnlyList<EntrypointsSection>? Entrypoints,
+    IReadOnlyList<MessageFlowSection>? MessageFlow,
+    IReadOnlyList<CallgraphsSection>? Callgraphs,
+    IReadOnlyList<ConfigSection>? Configs,
+    IReadOnlyList<CommandSection>? Commands,
     IReadOnlyList<CliCommandsSection>? CliCommands,
-    IReadOnlyList<TestSection> Tests
+    IReadOnlyList<TestSection>? Tests
 );
 
 // Секции — сигнатуры пустые/минимальные
@@ -20,7 +20,8 @@ public sealed record Meta(
     string Version,
     string SchemaVersion,
     DateTime GeneratedAt,
-    string? RepositoryUrl = null
+    string? RepositoryUrl = null,
+    IReadOnlyList<string>? Sections = null
 );
 
 public sealed record ProjectSection(

@@ -4,7 +4,7 @@
   "title": "CD Index Project Schema",
   "description": "Schema for cd-index project structure and dependency flows",
   "type": "object",
-  "required": ["Meta", "Project", "Tree", "DI", "Entrypoints", "MessageFlow", "Callgraphs", "Configs", "Commands", "Tests"],
+  "required": ["Meta", "Project"],
   "properties": {
     "Meta": {
       "type": "object",
@@ -21,12 +21,23 @@
         },
         "SchemaVersion": {
           "type": "string",
-          "const": "1.1",
-          "description": "Schema version (current: 1.1)"
+          "const": "1.2",
+          "description": "Schema version (current: 1.2)"
         },
         "RepositoryUrl": {
           "type": ["string", "null"],
           "description": "URL of the repository being indexed"
+        },
+        "Sections": {
+          "type": "array",
+          "description": "List of section names actually emitted (present in this document)",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Tree","DI","Entrypoints","Configs","Commands","MessageFlow","Callgraphs","Tests","CliCommands"
+            ]
+          },
+          "uniqueItems": true
         }
       },
       "additionalProperties": false
