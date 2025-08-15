@@ -84,48 +84,48 @@ Options:
         {
             if (args.Length == 1 || args.Skip(1).Any(IsHelp))
             {
-                Console.WriteLine("Usage: cd-index config <init|print|example> [options]\n  init     Generate cd-index.toml (use --force to overwrite)\n  print    Show merged configuration (after defaults+TOML; CLI overrides not applied here yet)\n  example  Print rich commented example (defaults only, ignores existing file)." );
+                Console.WriteLine("Usage: cd-index config <init|print|example> [options]\n  init     Generate cd-index.toml (use --force to overwrite)\n  print    Show merged configuration (after defaults+TOML; CLI overrides not applied here yet)\n  example  Print rich commented example (defaults only, ignores existing file).");
                 return 0;
             }
             var sub = args[1];
             switch (sub)
             {
                 case "init":
-                {
-                    var force = args.Contains("--force");
-                    var path = args.Skip(2).FirstOrDefault(a => a == "--path") != null ? args.SkipWhile(a => a != "--path").Skip(1).FirstOrDefault() : null;
-                    path ??= Path.Combine(Directory.GetCurrentDirectory(), "cd-index.toml");
-                    if (File.Exists(path) && !force)
                     {
-                        Console.Error.WriteLine($"Config file '{path}' already exists. Use --force to overwrite.");
-                        return 8;
-                    }
-                    var defaults = Config.ScanConfig.Defaults();
-                    File.WriteAllText(path, Config.ConfigExampleBuilder.Build(defaults));
-                    Console.WriteLine($"Written template config to {path}");
-                    return 0;
-                }
-                case "print":
-                {
-                    string? explicitPath = null;
-                    for (int i = 2; i < args.Length; i++)
-                    {
-                        if (args[i] == "--config" && i + 1 < args.Length)
+                        var force = args.Contains("--force");
+                        var path = args.Skip(2).FirstOrDefault(a => a == "--path") != null ? args.SkipWhile(a => a != "--path").Skip(1).FirstOrDefault() : null;
+                        path ??= Path.Combine(Directory.GetCurrentDirectory(), "cd-index.toml");
+                        if (File.Exists(path) && !force)
                         {
-                            explicitPath = args[++i];
+                            Console.Error.WriteLine($"Config file '{path}' already exists. Use --force to overwrite.");
+                            return 8;
                         }
+                        var defaults = Config.ScanConfig.Defaults();
+                        File.WriteAllText(path, Config.ConfigExampleBuilder.Build(defaults));
+                        Console.WriteLine($"Written template config to {path}");
+                        return 0;
                     }
-                    var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
-                    foreach (var d in diags) Console.Error.WriteLine(d);
-                    Console.WriteLine(Config.ConfigExampleBuilder.Build(cfg));
-                    return 0;
-                }
+                case "print":
+                    {
+                        string? explicitPath = null;
+                        for (int i = 2; i < args.Length; i++)
+                        {
+                            if (args[i] == "--config" && i + 1 < args.Length)
+                            {
+                                explicitPath = args[++i];
+                            }
+                        }
+                        var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
+                        foreach (var d in diags) Console.Error.WriteLine(d);
+                        Console.WriteLine(Config.ConfigExampleBuilder.Build(cfg));
+                        return 0;
+                    }
                 case "example":
-                {
-                    var defaults = Config.ScanConfig.Defaults();
-                    Console.WriteLine(Config.ConfigExampleBuilder.Build(defaults));
-                    return 0;
-                }
+                    {
+                        var defaults = Config.ScanConfig.Defaults();
+                        Console.WriteLine(Config.ConfigExampleBuilder.Build(defaults));
+                        return 0;
+                    }
                 default:
                     Console.Error.WriteLine($"Unknown config subcommand '{sub}'");
                     return 5;
@@ -166,13 +166,13 @@ Options:
             // Callgraph options
             var callgraphMethods = new List<string>();
             int? maxCallDepth = null; int? maxCallNodes = null; bool includeExternal = false;
-        string? configPath = null;
-        for (int i = 1; i < args.Length; i++)
+            string? configPath = null;
+            for (int i = 1; i < args.Length; i++)
             {
                 var a = args[i];
                 switch (a)
                 {
-            case "--config": if (i + 1 < args.Length) configPath = args[++i]; else return 5; break;
+                    case "--config": if (i + 1 < args.Length) configPath = args[++i]; else return 5; break;
                     case "--sln": if (i + 1 < args.Length) slnPath = args[++i]; else return 5; break;
                     case "--csproj": if (i + 1 < args.Length) csprojPath = args[++i]; else return 5; break;
                     case "--out": if (i + 1 < args.Length) outFile = new FileInfo(args[++i]); else return 5; break;

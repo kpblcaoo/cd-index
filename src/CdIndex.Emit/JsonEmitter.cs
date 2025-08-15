@@ -16,7 +16,7 @@ public static class JsonEmitter
         // Order all collections for deterministic output
         var orderedIndex = OrderCollections(projectIndex);
 
-    JsonSerializer.Serialize(stream, orderedIndex, pretty ? s_pretty : s_compact);
+        JsonSerializer.Serialize(stream, orderedIndex, pretty ? s_pretty : s_compact);
     }
 
     public static string EmitString(ProjectIndex projectIndex, bool pretty = true)
@@ -145,6 +145,6 @@ public static class JsonEmitter
         // Add custom converters if needed
         options.Converters.Add(new JsonStringEnumConverter());
 
-    return options;
+        return options;
     }
 }

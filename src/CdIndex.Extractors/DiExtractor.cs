@@ -45,8 +45,8 @@ public sealed class DiExtractor : IExtractor
     {
         _registrations.Clear();
         _hostedServices.Clear();
-    // Extraction start (debug only when buffer provided)
-    Log("INIT", "-", "-", "begin");
+        // Extraction start (debug only when buffer provided)
+        Log("INIT", "-", "-", "begin");
         foreach (var project in context.Solution.Projects)
         {
             foreach (var document in project.Documents)
@@ -103,7 +103,7 @@ public sealed class DiExtractor : IExtractor
 
             return a.Line.CompareTo(b.Line);
         });
-    Log("DONE", _registrations.Count.ToString(), _hostedServices.Count.ToString(), "sorted");
+        Log("DONE", _registrations.Count.ToString(), _hostedServices.Count.ToString(), "sorted");
     }
 
     private void ProcessInvocation(InvocationExpressionSyntax invocation, SemanticModel semanticModel, RoslynContext context)

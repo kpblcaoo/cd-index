@@ -115,12 +115,12 @@ internal static class ScanCommand
         }
 
         DISection diSection = new(new List<DiRegistration>(), new List<HostedService>());
-    if (scanDi)
+        if (scanDi)
         {
             try
             {
-        var diExtractor = new DiExtractor(diDedupe: diDedupe);
-        diExtractor.Extract(roslyn);
+                var diExtractor = new DiExtractor(diDedupe: diDedupe);
+                diExtractor.Extract(roslyn);
                 diSection = new DISection(diExtractor.Registrations.ToList(), diExtractor.HostedServices.ToList());
             }
             catch (Exception ex)
@@ -163,7 +163,7 @@ internal static class ScanCommand
         }
 
         var commandSections = new List<CommandSection>();
-    if (scanCommands)
+        if (scanCommands)
         {
             try
             {

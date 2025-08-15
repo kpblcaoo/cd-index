@@ -19,7 +19,7 @@ public static class TreeScanner
         ignoreGlobs ??= DefaultIgnores;
         var files = Directory.EnumerateFiles(repoRoot, "*", SearchOption.AllDirectories)
             .Where(f => ShouldInclude(f, repoRoot, includeExts, ignoreGlobs));
-    var entries = files.Select(f => ScanFile(f, repoRoot, locMode)).ToList();
+        var entries = files.Select(f => ScanFile(f, repoRoot, locMode)).ToList();
         entries.Sort(ByPathComparer.Instance);
         return entries;
     }

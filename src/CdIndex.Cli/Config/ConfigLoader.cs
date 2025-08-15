@@ -20,7 +20,8 @@ public static class ConfigLoader
         {
             var p1 = Path.Combine(repoRoot, "cd-index.toml");
             var p2 = Path.Combine(repoRoot, ".cd-index.toml");
-            if (File.Exists(p1)) path = p1; else if (File.Exists(p2)) path = p2;
+            if (File.Exists(p1)) path = p1;
+            else if (File.Exists(p2)) path = p2;
             else
             {
                 var env = Environment.GetEnvironmentVariable("CD_INDEX_CONFIG");
@@ -54,7 +55,7 @@ public static class ConfigLoader
             var doc = Toml.Parse(text);
             if (doc.HasErrors)
             {
-                foreach (var e in doc.Diagnostics) diags.Add($"CFG100 {e}" );
+                foreach (var e in doc.Diagnostics) diags.Add($"CFG100 {e}");
             }
             var root = doc.ToModel();
             if (root is TomlTable table)
@@ -62,35 +63,35 @@ public static class ConfigLoader
                 // scan
                 if (table.TryGetValue("scan", out var scanObj) && scanObj is TomlTable scan)
                 {
-                    if (scan.TryGetValue("ignore", out var ig) && ig is TomlArray iga) cfg.Scan.Ignore = iga.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
-                    if (scan.TryGetValue("ext", out var ex) && ex is TomlArray exa) cfg.Scan.Ext = exa.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (scan.TryGetValue("ignore", out var ig) && ig is TomlArray iga) cfg.Scan.Ignore = iga.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
+                    if (scan.TryGetValue("ext", out var ex) && ex is TomlArray exa) cfg.Scan.Ext = exa.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
                     if (scan.TryGetValue("noTree", out var nt) && bool.TryParse(nt?.ToString(), out var bnt)) cfg.Scan.NoTree = bnt;
-                    if (scan.TryGetValue("sections", out var sec) && sec is TomlArray seca) cfg.Scan.Sections = seca.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (scan.TryGetValue("sections", out var sec) && sec is TomlArray seca) cfg.Scan.Sections = seca.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
                 }
                 if (table.TryGetValue("tree", out var treeObj) && treeObj is TomlTable tree)
                 {
-                    if (tree.TryGetValue("locMode", out var lm) && lm!=null) cfg.Tree.LocMode = lm.ToString()!;
+                    if (tree.TryGetValue("locMode", out var lm) && lm != null) cfg.Tree.LocMode = lm.ToString()!;
                     if (tree.TryGetValue("useGitignore", out var ug) && bool.TryParse(ug?.ToString(), out var bug)) cfg.Tree.UseGitignore = bug;
                 }
                 if (table.TryGetValue("di", out var diObj) && diObj is TomlTable di)
                 {
-                    if (di.TryGetValue("dedupe", out var dd) && dd!=null) cfg.DI.Dedupe = dd.ToString()!;
+                    if (di.TryGetValue("dedupe", out var dd) && dd != null) cfg.DI.Dedupe = dd.ToString()!;
                 }
                 if (table.TryGetValue("commands", out var cmdObj) && cmdObj is TomlTable cmd)
                 {
-                    if (cmd.TryGetValue("include", out var inc) && inc is TomlArray inca) cfg.Commands.Include = inca.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
-                    if (cmd.TryGetValue("attrNames", out var an) && an is TomlArray ana) cfg.Commands.AttrNames = ana.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
-                    if (cmd.TryGetValue("routerNames", out var rn) && rn is TomlArray rna) cfg.Commands.RouterNames = rna.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
-                    if (cmd.TryGetValue("normalize", out var norm) && norm is TomlArray norma) cfg.Commands.Normalize = norma.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
-                    if (cmd.TryGetValue("allowRegex", out var ar) && ar!=null) cfg.Commands.AllowRegex = ar.ToString();
-                    if (cmd.TryGetValue("dedup", out var dp) && dp!=null) cfg.Commands.Dedup = dp.ToString()!;
-                    if (cmd.TryGetValue("conflicts", out var cf) && cf!=null) cfg.Commands.Conflicts = cf.ToString()!;
+                    if (cmd.TryGetValue("include", out var inc) && inc is TomlArray inca) cfg.Commands.Include = inca.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
+                    if (cmd.TryGetValue("attrNames", out var an) && an is TomlArray ana) cfg.Commands.AttrNames = ana.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
+                    if (cmd.TryGetValue("routerNames", out var rn) && rn is TomlArray rna) cfg.Commands.RouterNames = rna.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
+                    if (cmd.TryGetValue("normalize", out var norm) && norm is TomlArray norma) cfg.Commands.Normalize = norma.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
+                    if (cmd.TryGetValue("allowRegex", out var ar) && ar != null) cfg.Commands.AllowRegex = ar.ToString();
+                    if (cmd.TryGetValue("dedup", out var dp) && dp != null) cfg.Commands.Dedup = dp.ToString()!;
+                    if (cmd.TryGetValue("conflicts", out var cf) && cf != null) cfg.Commands.Conflicts = cf.ToString()!;
                 }
                 if (table.TryGetValue("flow", out var flowObj) && flowObj is TomlTable flow)
                 {
-                    if (flow.TryGetValue("handler", out var h) && h!=null) cfg.Flow.Handler = h.ToString();
-                    if (flow.TryGetValue("method", out var m) && m!=null) cfg.Flow.Method = m.ToString()!;
-                    if (flow.TryGetValue("delegateSuffixes", out var ds) && ds is TomlArray dsa) cfg.Flow.DelegateSuffixes = dsa.OfType<object?>().Select(v=>v?.ToString()??"").Where(s=>s.Length>0).ToList();
+                    if (flow.TryGetValue("handler", out var h) && h != null) cfg.Flow.Handler = h.ToString();
+                    if (flow.TryGetValue("method", out var m) && m != null) cfg.Flow.Method = m.ToString()!;
+                    if (flow.TryGetValue("delegateSuffixes", out var ds) && ds is TomlArray dsa) cfg.Flow.DelegateSuffixes = dsa.OfType<object?>().Select(v => v?.ToString() ?? "").Where(s => s.Length > 0).ToList();
                 }
             }
         }

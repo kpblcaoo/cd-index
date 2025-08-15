@@ -64,7 +64,7 @@ public class JsonEmitterTests
         var index = CreateSampleProjectIndex();
 
         // Act
-    var json = JsonEmitter.EmitString(index, pretty: false);
+        var json = JsonEmitter.EmitString(index, pretty: false);
 
         // Assert
         // Should not contain pretty-print formatting

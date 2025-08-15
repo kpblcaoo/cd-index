@@ -62,7 +62,7 @@ public sealed class CommandsInclusionAndDiDedupeTests
     {
         var ctx = await SolutionLoader.LoadSolutionAsync(DiSln, TestRepoRoot);
         // Run extraction with dedupe
-        var extractor = new DiExtractor(diDedupe:true);
+        var extractor = new DiExtractor(diDedupe: true);
         extractor.Extract(ctx);
         // Assert heuristic: no implementation ending with Exception
         Assert.DoesNotContain(extractor.Registrations, r => r.Implementation.EndsWith("Exception", StringComparison.Ordinal));
