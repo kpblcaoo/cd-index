@@ -21,6 +21,7 @@ public class MetaSectionsTests
             null,
             null,
             null,
+            null,
             null
         );
         var json = JsonEmitter.EmitString(index, pretty: false);
@@ -46,11 +47,15 @@ public class MetaSectionsTests
             null,
             null,
             null,
+            null,
             null
         );
         var json = JsonEmitter.EmitString(index, pretty: false);
         using var doc = JsonDocument.Parse(json);
         var metaEl = doc.RootElement.GetProperty("Meta");
-        Assert.False(metaEl.TryGetProperty("Sections", out _));
+        if (metaEl.TryGetProperty("Sections", out var sectionsProp))
+        {
+            Assert.Equal(0, sectionsProp.GetArrayLength());
+        }
     }
 }

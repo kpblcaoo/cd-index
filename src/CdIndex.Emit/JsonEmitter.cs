@@ -150,7 +150,7 @@ public static class JsonEmitter
         AddIf(index.CliCommands, "CliCommands");
         AddIf(index.Tests, "Tests");
         sectionNames.Sort(StringComparer.Ordinal);
-        var meta = new Meta(index.Meta.Version, "1.2", index.Meta.GeneratedAt, index.Meta.RepositoryUrl, sectionNames);
+        var meta = new Meta(index.Meta.Version, "1.2", index.Meta.GeneratedAt, index.Meta.RepositoryUrl, sectionNames.Count == 0 ? null : sectionNames);
 
         return new ProjectIndex(
             meta,

@@ -9,9 +9,6 @@
     <ProjectReference Include="../../src/CdIndex.Emit/CdIndex.Emit.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MetaSectionsTests.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="xunit.v3.core" Version="3.0.0" />
     <PackageReference Include="xunit.v3.assert" Version="3.0.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.3" />
