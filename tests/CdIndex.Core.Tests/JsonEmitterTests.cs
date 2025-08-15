@@ -105,7 +105,7 @@ public class JsonEmitterTests
             Array.Empty<DISection>(),
             Array.Empty<EntrypointsSection>(),
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
@@ -144,7 +144,7 @@ public class JsonEmitterTests
             Array.Empty<DISection>(),
             new[] { ep2, ep1 }, // unsorted
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
@@ -241,7 +241,7 @@ public class JsonEmitterTests
             new[] { di },
             new[] { entrypointsSection },
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()
@@ -264,7 +264,7 @@ public class JsonEmitterTests
             Array.Empty<DISection>(),
             Array.Empty<EntrypointsSection>(),
             Array.Empty<MessageFlowSection>(),
-            Array.Empty<CallgraphSection>(),
+            Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
             Array.Empty<TestSection>()

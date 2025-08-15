@@ -40,6 +40,11 @@ Options:
     --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
     --flow-method <MethodName>       Handler method name for flow (default HandleAsync)
     --flow-delegate-suffixes <list>  Comma/space list of type suffixes treated as delegates (default Router,Facade,Service,Dispatcher,Processor,Manager,Module)
+    --scan-callgraphs / --no-scan-callgraphs     Enable/disable callgraph extraction (default off)
+    --callgraph-method <MethodId>   Root method for callgraph (repeatable). Format: Namespace.Type.Method(/argCount optional) or Namespace.Type..ctor(/argCount)
+    --max-call-depth <N>            Max traversal depth (default 2)
+    --max-call-nodes <N>            Max distinct nodes visited (default 200)
+    --include-external              Include external (out-of-solution) callees as leaf nodes
     --verbose                        Verbose diagnostics to stderr
     -h, --help                       Show this help
 ";
@@ -133,6 +138,7 @@ Options:
             string? commandConflictReport = null;
             var locMode = "physical";
             bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
+            bool scanCallgraphs = false;
             string? flowHandler = null; string flowMethod = "HandleAsync"; string? flowDelegateSuffixes = null;
             var envPrefixes = new List<string>();
             var commandRouterNames = new List<string>();
@@ -143,6 +149,9 @@ Options:
             var commandInclude = new List<string>();
             string? commandAllowRegex = null;
             bool diDedupe = false;
+            // Callgraph options
+            var callgraphMethods = new List<string>();
+            int? maxCallDepth = null; int? maxCallNodes = null; bool includeExternal = false;
         string? configPath = null;
         for (int i = 1; i < args.Length; i++)
             {
@@ -210,6 +219,12 @@ Options:
                     case "--flow-handler": if (i + 1 < args.Length) flowHandler = args[++i]; else return 5; break;
                     case "--flow-method": if (i + 1 < args.Length) flowMethod = args[++i]; else return 5; break;
                     case "--flow-delegate-suffixes": if (i + 1 < args.Length) flowDelegateSuffixes = args[++i]; else return 5; break;
+                    case "--scan-callgraphs": scanCallgraphs = true; break;
+                    case "--no-scan-callgraphs": scanCallgraphs = false; break;
+                    case "--callgraph-method": if (i + 1 < args.Length) { callgraphMethods.Add(args[++i]); } else return 5; break;
+                    case "--max-call-depth": if (i + 1 < args.Length && int.TryParse(args[++i], out var mcd)) maxCallDepth = mcd; else return 5; break;
+                    case "--max-call-nodes": if (i + 1 < args.Length && int.TryParse(args[++i], out var mcn)) maxCallNodes = mcn; else return 5; break;
+                    case "--include-external": includeExternal = true; break;
                     case "--help":
                     case "-h":
                     case "help":
@@ -265,11 +280,12 @@ Options:
                         case "configs": scanConfigs = true; break;
                         case "commands": scanCommands = true; break;
                         case "messageflow": scanFlow = true; break;
-                        case "callgraphs": /* placeholder */ break;
+                        case "callgraphs": scanCallgraphs = true; break;
                         default: Console.Error.WriteLine($"WARN: unknown section '{s}' ignored"); break;
                     }
                 }
             }
+            if (callgraphMethods.Count > 0) scanCallgraphs = true; // auto-enable
             // Load config (merge defaults + TOML). CLI overrides applied below manually (phase 2 TODO).
             var repoRoot = slnPath != null ? Path.GetDirectoryName(Path.GetFullPath(slnPath))! : Directory.GetCurrentDirectory();
             var (cfg, cfgSource, loadDiags) = ConfigLoader.Load(configPath, repoRoot, verbose);
@@ -322,7 +338,12 @@ Options:
                 flowDelegateSuffixes != null ? flowDelegateSuffixes.Split(',', ' ', StringSplitOptions.RemoveEmptyEntries) : null,
                 commandInclude,
                 diDedupe,
-                commandAllowRegex);
+                commandAllowRegex,
+                scanCallgraphs,
+                callgraphMethods,
+                maxCallDepth,
+                maxCallNodes,
+                includeExternal);
             return code;
         }
 

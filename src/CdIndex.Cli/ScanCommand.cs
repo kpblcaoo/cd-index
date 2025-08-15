@@ -13,10 +13,11 @@ internal static class ScanCommand
 {
     public static int Run(FileInfo? sln, FileInfo? csproj, FileInfo? outFile, string[] exts, string[] ignores, bool useGitignore, string locMode,
         bool scanTree, bool scanDi, bool scanEntrypoints, bool scanConfigs, List<string> envPrefixes, bool scanCommands,
-    bool scanFlow, string? flowHandler, string flowMethod, bool verbose, List<string>? commandRouterNames = null,
-    List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
-    string? commandConflicts = null, string? commandConflictReport = null, IEnumerable<string>? flowDelegateSuffixes = null,
-    List<string>? commandsInclude = null, bool diDedupe = false, string? commandAllowRegex = null)
+        bool scanFlow, string? flowHandler, string flowMethod, bool verbose, List<string>? commandRouterNames = null,
+        List<string>? commandAttrNames = null, List<string>? commandNormalize = null, string? commandDedup = null,
+        string? commandConflicts = null, string? commandConflictReport = null, IEnumerable<string>? flowDelegateSuffixes = null,
+        List<string>? commandsInclude = null, bool diDedupe = false, string? commandAllowRegex = null,
+        bool scanCallgraphs = false, List<string>? callgraphMethods = null, int? maxCallDepth = null, int? maxCallNodes = null, bool includeExternal = false)
     {
         var hasSln = sln != null;
         var hasProj = csproj != null;
@@ -292,6 +293,28 @@ internal static class ScanCommand
             Console.Error.WriteLine("FLW001 flow disabled (enable with --scan-flow)");
         }
 
+        // Callgraphs (optional)
+        var callgraphSections = new List<CallgraphsSection>();
+        if (scanCallgraphs)
+        {
+            try
+            {
+                var cgExtractor = new CallgraphExtractor(
+                    callgraphMethods ?? new List<string>(),
+                    maxDepth: maxCallDepth ?? 2,
+                    maxNodes: maxCallNodes ?? 200,
+                    includeExternal: includeExternal,
+                    verbose: verbose,
+                    log: msg => { if (verbose) Console.Error.WriteLine(msg); });
+                cgExtractor.Extract(roslyn);
+                callgraphSections.AddRange(cgExtractor.Sections);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("WARN: Callgraph extraction failed: " + ex.Message);
+            }
+        }
+
         var index = new ProjectIndex(
             meta,
             projectSections,
@@ -299,7 +322,7 @@ internal static class ScanCommand
             scanDi ? new[] { diSection } : Array.Empty<DISection>(),
             entrySections,
             flowSections,
-            Array.Empty<CallgraphSection>(),
+            callgraphSections,
             configSections,
             commandSections,
             Array.Empty<TestSection>()

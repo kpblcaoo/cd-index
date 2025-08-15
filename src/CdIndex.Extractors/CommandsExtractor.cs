@@ -47,10 +47,10 @@ public sealed class CommandsExtractor : IExtractor
 
     public void Extract(RoslynContext context)
     {
-    _items.Clear();
-    _seen.Clear();
-    _canonicalGroups.Clear();
-    _conflicts.Clear();
+        _items.Clear();
+        _seen.Clear();
+        _canonicalGroups.Clear();
+        _conflicts.Clear();
         foreach (var project in context.Solution.Projects)
         {
             foreach (var doc in project.Documents)
@@ -367,7 +367,7 @@ public sealed class CommandsExtractor : IExtractor
         {
             return s;
         }
-    if (allowBare && constant.HasValue && constant.Value is string s2 && s2.Trim().Length > 0) return s2;
+        if (allowBare && constant.HasValue && constant.Value is string s2 && s2.Trim().Length > 0) return s2;
         return null;
     }
 
@@ -387,11 +387,11 @@ public sealed class CommandsExtractor : IExtractor
     {
         var norm = Normalize(command);
         if (norm == null) return;
-    if (_allowRegex != null && !_allowRegex.IsMatch(norm)) return; // regex gate
-    if (!_seen.Add((norm, handler))) return; // dedupe (command, handler)
+        if (_allowRegex != null && !_allowRegex.IsMatch(norm)) return; // regex gate
+        if (!_seen.Add((norm, handler))) return; // dedupe (command, handler)
         var item = new CommandItem(norm, handler, file, line);
         _items.Add(item);
-    // defer conflict grouping until end
+        // defer conflict grouping until end
     }
 
     private string? Normalize(string? raw)

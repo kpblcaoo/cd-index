@@ -3,6 +3,7 @@ using CdIndex.Roslyn;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis;
+using System.Text.RegularExpressions;
 
 namespace CdIndex.Extractors;
 
@@ -41,6 +42,8 @@ public sealed class ConfigExtractor : IExtractor
         }
     }
 
+    private static readonly Regex EnvKeyRegex = new("^[A-Z0-9_]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     private void CollectEnvLiterals(CSharpSyntaxNode root)
     {
         foreach (var lit in root.DescendantNodes().OfType<LiteralExpressionSyntax>())
@@ -52,8 +55,12 @@ public sealed class ConfigExtractor : IExtractor
                 {
                     if (text.StartsWith(prefix, StringComparison.Ordinal) && text.Length > prefix.Length)
                     {
-                        _envKeys.Add(text);
-                        break;
+                        // Only accept plausible env var tokens (all-caps, digits, underscore)
+                        if (EnvKeyRegex.IsMatch(text))
+                        {
+                            _envKeys.Add(text);
+                        }
+                        break; // don't test other prefixes
                     }
                 }
             }
@@ -64,23 +71,15 @@ public sealed class ConfigExtractor : IExtractor
     {
         foreach (var member in root.DescendantNodes().OfType<MemberAccessExpressionSyntax>())
         {
-            var symbol = semantic.GetSymbolInfo(member.Expression).Symbol;
-            if (symbol == null) continue;
-            var type = symbol switch
-            {
-                ILocalSymbol ls => ls.Type,
-                IParameterSymbol ps => ps.Type,
-                IPropertySymbol prs => prs.Type,
-                IFieldSymbol fs => fs.Type,
-                IMethodSymbol ms => ms.ReturnType,
-                INamedTypeSymbol nts => nts,
-                _ => null
-            } as INamedTypeSymbol;
-            if (type == null) continue;
-            if (!IsAppConfigLike(type)) continue;
-            var propName = member.Name.Identifier.ValueText;
+            // Only consider property accesses (exclude method invocations / GetType etc)
+            var accessedSymbol = semantic.GetSymbolInfo(member).Symbol as IPropertySymbol;
+            if (accessedSymbol == null) continue;
+            var containingType = accessedSymbol.ContainingType;
+            if (containingType == null) continue;
+            if (!IsAppConfigLike(containingType)) continue;
+            var propName = accessedSymbol.Name;
             if (string.IsNullOrEmpty(propName)) continue;
-            _appProps.Add(type.Name + "." + propName);
+            _appProps.Add(containingType.Name + "." + propName);
         }
     }
 

@@ -8,7 +8,7 @@ public sealed record ProjectIndex(
     IReadOnlyList<DISection> DI,
     IReadOnlyList<EntrypointsSection> Entrypoints,
     IReadOnlyList<MessageFlowSection> MessageFlow,
-    IReadOnlyList<CallgraphSection> Callgraphs,
+    IReadOnlyList<CallgraphsSection> Callgraphs,
     IReadOnlyList<ConfigSection> Configs,
     IReadOnlyList<CommandSection> Commands,
     IReadOnlyList<TestSection> Tests
@@ -50,7 +50,20 @@ public sealed record ProgramMain(string File, int Line, string? TypeName);
 public sealed record MessageFlowSection(
     IReadOnlyList<FlowNode> Nodes
 );
-public sealed record CallgraphSection;
+public sealed record CallgraphsSection(
+    ProjectRef Project,
+    IReadOnlyList<Callgraph> Graphs
+);
+public sealed record Callgraph(
+    string Root,
+    int Depth,
+    bool Truncated,
+    IReadOnlyList<CallEdge> Edges
+);
+public sealed record CallEdge(
+    string Caller,
+    string Callee
+);
 public sealed record ConfigSection(
     IReadOnlyList<string> EnvKeys,
     IReadOnlyList<string> AppProps

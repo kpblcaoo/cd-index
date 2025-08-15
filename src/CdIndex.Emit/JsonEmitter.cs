@@ -106,7 +106,23 @@ public static class JsonEmitter
             orderedDI,
             orderedEntrypoints,
             index.MessageFlow,
-            index.Callgraphs,
+            // Order callgraphs: sections by Project.Name then graphs by Root then edges by Caller+Callee
+            Orderer.Sort(index.Callgraphs.Select(sec => new CallgraphsSection(
+                    sec.Project,
+                    Orderer.Sort(sec.Graphs.Select(g => new Callgraph(
+                        g.Root,
+                        g.Depth,
+                        g.Truncated,
+                        Orderer.Sort(g.Edges,
+                            Comparer<CallEdge>.Create((a,b)=>{
+                                var c = string.Compare(a.Caller,b.Caller,StringComparison.Ordinal);
+                                if (c!=0) return c; return string.Compare(a.Callee,b.Callee,StringComparison.Ordinal);
+                            }))
+                    )),
+                        Comparer<Callgraph>.Create((a,b)=> string.Compare(a.Root,b.Root,StringComparison.Ordinal)))
+                )),
+                Comparer<CallgraphsSection>.Create((a,b)=> string.Compare(a.Project.Name,b.Project.Name,StringComparison.Ordinal))
+            ),
             orderedConfigs,
             index.Commands,
             index.Tests
