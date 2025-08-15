@@ -137,6 +137,14 @@ Additional docs:
 - `README.flow.md` – flow extractor patterns, resolution strategy, verbose diagnostics.
 	- updated for configurable delegate suffixes & expanded patterns.
 
+### Internal Architecture Notes
+- Extractors implement `IExtractor` (non-generic) and, where they surface a homogeneous collection, also `IExtractor<T>` to enable generic tooling / shared test helpers without sacrificing backwards compatibility.
+- Synchronous Roslyn access is centralized via `RoslynSync` to keep deterministic single-threaded behavior explicit and localize any future async migration.
+- Path normalization is centralized (`PathEx.Normalize`) ensuring all stored file paths are repo-relative and forward-slash; avoid ad-hoc `Replace("\\", "/")` usage elsewhere.
+- Deterministic ordering is consistently enforced using ordinal comparisons; helper expansion (`Orderer`) exists for future chained key sorts but core extractors keep explicit comparers for clarity.
+
+These internal utilities are intentionally minimal to preserve the low-dependency surface and keep reasoning about determinism straightforward.
+
 ## Tests
 Run all tests:
 ```

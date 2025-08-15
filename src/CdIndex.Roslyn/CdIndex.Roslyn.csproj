@@ -10,4 +10,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.*" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.*" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CdIndex.Core/CdIndex.Core.csproj" />
+  </ItemGroup>
 </Project>

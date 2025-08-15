@@ -1,0 +1,69 @@
+{
+  "linesOfCode": 101,
+  "numberOfClasses": 2,
+  "numberOfPublicMethods": 2,
+  "numberOfPrivateMethods": 5,
+  "classes": [
+    {
+      "name": "TreeScanner",
+      "linesOfCode": 95,
+      "methods": [
+        {
+          "name": "Scan",
+          "linesOfCode": 10,
+          "parameterCount": 4,
+          "cyclomaticComplexity": 1,
+          "maxNestingDepth": 0
+        },
+        {
+          "name": "ShouldInclude",
+          "linesOfCode": 15,
+          "parameterCount": 4,
+          "cyclomaticComplexity": 7,
+          "maxNestingDepth": 3
+        },
+        {
+          "name": "ScanFile",
+          "linesOfCode": 7,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 1,
+          "maxNestingDepth": 0
+        },
+        {
+          "name": "NormalizePath",
+          "linesOfCode": 1,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 1,
+          "maxNestingDepth": 0
+        },
+        {
+          "name": "GetKind",
+          "linesOfCode": 5,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 2,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "GetShaAndLoc",
+          "linesOfCode": 39,
+          "parameterCount": 2,
+          "cyclomaticComplexity": 12,
+          "maxNestingDepth": 4
+        }
+      ]
+    },
+    {
+      "name": "ByPathComparer",
+      "linesOfCode": 6,
+      "methods": [
+        {
+          "name": "Compare",
+          "linesOfCode": 2,
+          "parameterCount": 2,
+          "cyclomaticComplexity": 1,
+          "maxNestingDepth": 0
+        }
+      ]
+    }
+  ]
+}

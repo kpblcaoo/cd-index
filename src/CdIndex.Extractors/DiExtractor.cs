@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CdIndex.Extractors;
 
-public sealed class DiExtractor : IExtractor
+public sealed class DiExtractor : IExtractor, IExtractor<DiRegistration>
 {
     private readonly List<DiRegistration> _registrations = new();
     private readonly List<HostedService> _hostedServices = new();
@@ -28,6 +28,7 @@ public sealed class DiExtractor : IExtractor
     }
 
     public IReadOnlyList<DiRegistration> Registrations => _registrations;
+    IReadOnlyList<DiRegistration> IExtractor<DiRegistration>.Items => _registrations;
     public IReadOnlyList<HostedService> HostedServices => _hostedServices;
 
     private static string GetTypeName(ITypeSymbol s) => s.ToDisplayString(FullNoGlobal);

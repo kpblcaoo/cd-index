@@ -1,7 +1,4 @@
-// Minimal CLI stub for --version
-using System;
 using System.CommandLine;
-using System.CommandLine.Parsing;
 
 namespace CdIndex.Cli;
 

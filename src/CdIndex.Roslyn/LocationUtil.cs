@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis;
-using System.IO;
+using CdIndex.Core;
 
 namespace CdIndex.Roslyn;
 
@@ -9,7 +9,7 @@ public static class LocationUtil
     {
         var span = node.GetLocation().GetLineSpan();
         var absPath = span.Path.Replace("\\", "/");
-        var relPath = absPath.Replace(ctx.RepoRoot.Replace("\\", "/"), "").TrimStart('/');
+        var relPath = PathEx.Normalize(absPath, ctx.RepoRoot);
         var line = span.StartLinePosition.Line + 1;
         return (relPath, line);
     }

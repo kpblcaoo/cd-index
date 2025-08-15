@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CdIndex.Extractors;
 
-public sealed class CommandsExtractor : IExtractor
+public sealed class CommandsExtractor : IExtractor, IExtractor<CommandItem>
 {
     private readonly List<CommandItem> _items = new();
     // Dedup uniqueness only on (Command, Handler) per requirements
@@ -43,6 +43,7 @@ public sealed class CommandsExtractor : IExtractor
     }
 
     public IReadOnlyList<CommandItem> Items => _items;
+    IReadOnlyList<CommandItem> IExtractor<CommandItem>.Items => _items;
     public IReadOnlyList<CommandConflict> Conflicts => _conflicts;
 
     public void Extract(RoslynContext context)

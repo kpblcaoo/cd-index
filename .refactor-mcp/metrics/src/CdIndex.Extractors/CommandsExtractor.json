@@ -1,0 +1,119 @@
+{
+  "linesOfCode": 411,
+  "numberOfClasses": 1,
+  "numberOfPublicMethods": 1,
+  "numberOfPrivateMethods": 14,
+  "classes": [
+    {
+      "name": "CommandsExtractor",
+      "linesOfCode": 401,
+      "methods": [
+        {
+          "name": "Extract",
+          "linesOfCode": 66,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 17,
+          "maxNestingDepth": 3
+        },
+        {
+          "name": "CollectRouterRegistrations",
+          "linesOfCode": 41,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 14,
+          "maxNestingDepth": 4
+        },
+        {
+          "name": "CollectComparisons",
+          "linesOfCode": 31,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 9,
+          "maxNestingDepth": 2
+        },
+        {
+          "name": "CollectHandlerProperties",
+          "linesOfCode": 47,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 18,
+          "maxNestingDepth": 8
+        },
+        {
+          "name": "CollectHandlerAttributes",
+          "linesOfCode": 35,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 15,
+          "maxNestingDepth": 4
+        },
+        {
+          "name": "CollectAttributeTypedConstant",
+          "linesOfCode": 10,
+          "parameterCount": 2,
+          "cyclomaticComplexity": 4,
+          "maxNestingDepth": 2
+        },
+        {
+          "name": "TryGetRawCommandValue",
+          "linesOfCode": 15,
+          "parameterCount": 2,
+          "cyclomaticComplexity": 8,
+          "maxNestingDepth": 2
+        },
+        {
+          "name": "TryGetCommandTexts",
+          "linesOfCode": 42,
+          "parameterCount": 2,
+          "cyclomaticComplexity": 21,
+          "maxNestingDepth": 6
+        },
+        {
+          "name": "ExtractFromInitializer",
+          "linesOfCode": 10,
+          "parameterCount": 2,
+          "cyclomaticComplexity": 4,
+          "maxNestingDepth": 2
+        },
+        {
+          "name": "TryGetCommandText",
+          "linesOfCode": 19,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 13,
+          "maxNestingDepth": 2
+        },
+        {
+          "name": "ResolveIdentifierTypeName",
+          "linesOfCode": 9,
+          "parameterCount": 2,
+          "cyclomaticComplexity": 5,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "IsCommandLiteral",
+          "linesOfCode": 1,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 2,
+          "maxNestingDepth": 0
+        },
+        {
+          "name": "Add",
+          "linesOfCode": 10,
+          "parameterCount": 4,
+          "cyclomaticComplexity": 5,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "Normalize",
+          "linesOfCode": 10,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 8,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "RecordCanonical",
+          "linesOfCode": 1,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 1,
+          "maxNestingDepth": 0
+        }
+      ]
+    }
+  ]
+}
