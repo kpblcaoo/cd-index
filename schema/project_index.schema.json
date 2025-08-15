@@ -4,7 +4,7 @@
   "title": "CD Index Project Schema",
   "description": "Schema for cd-index project structure and dependency flows",
   "type": "object",
-  "required": ["Meta", "Project", "Tree", "DI", "Entrypoints", "MessageFlow", "Callgraphs", "Configs", "Commands", "CliCommands", "Tests"],
+  "required": ["Meta", "Project", "Tree", "DI", "Entrypoints", "MessageFlow", "Callgraphs", "Configs", "Commands", "Tests"],
   "properties": {
     "Meta": {
       "type": "object",
