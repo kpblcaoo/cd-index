@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CdIndex.Extractors;
 
-public sealed class FlowExtractor : IExtractor
+public sealed class FlowExtractor : IExtractor, IExtractor<FlowNode>
 {
     private readonly string _handlerTypeInput;
     private readonly string _methodName;
@@ -31,6 +31,7 @@ public sealed class FlowExtractor : IExtractor
     }
 
     public IReadOnlyList<FlowNode> Nodes => _nodes;
+    IReadOnlyList<FlowNode> IExtractor<FlowNode>.Items => _nodes;
 
     public void Extract(RoslynContext context)
     {
@@ -43,13 +44,13 @@ public sealed class FlowExtractor : IExtractor
         foreach (var project in context.Solution.Projects.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
             Compilation? comp = null;
-            try { comp = project.GetCompilationAsync().Result; } catch { }
+            try { comp = RoslynSync.GetCompilation(project); } catch { }
             foreach (var doc in project.Documents)
             {
                 if (doc.FilePath?.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) != true) continue;
-                var root = doc.GetSyntaxRootAsync().Result as CSharpSyntaxNode;
+                var root = RoslynSync.GetRoot(doc) as CSharpSyntaxNode;
                 if (root == null) continue;
-                var semantic = doc.GetSemanticModelAsync().Result;
+                var semantic = RoslynSync.GetModel(doc);
                 if (semantic == null) continue;
                 foreach (var decl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
                 {
@@ -70,7 +71,7 @@ public sealed class FlowExtractor : IExtractor
         {
             foreach (var project in context.Solution.Projects)
             {
-                var comp = project.GetCompilationAsync().Result;
+                var comp = RoslynSync.GetCompilation(project);
                 var sym = comp?.GetTypeByMetadataName(_handlerTypeInput);
                 if (sym != null)
                 {
@@ -81,8 +82,8 @@ public sealed class FlowExtractor : IExtractor
                         var declNode = syntaxRef.GetSyntax() as ClassDeclarationSyntax;
                         if (declNode != null)
                         {
-                            var doc = project.Documents.FirstOrDefault(d => d.GetSyntaxRootAsync().Result == declNode.SyntaxTree.GetRoot());
-                            var model = doc?.GetSemanticModelAsync().Result;
+                            var doc = project.Documents.FirstOrDefault(d => RoslynSync.GetRoot(d) == declNode.SyntaxTree.GetRoot());
+                            var model = doc == null ? null : RoslynSync.GetModel(doc);
                             if (model != null)
                             {
                                 chosen = sym; chosenDecl = declNode; chosenModel = model; break;

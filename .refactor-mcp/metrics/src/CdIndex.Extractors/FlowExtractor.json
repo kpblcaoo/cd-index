@@ -1,0 +1,77 @@
+{
+  "linesOfCode": 328,
+  "numberOfClasses": 1,
+  "numberOfPublicMethods": 1,
+  "numberOfPrivateMethods": 8,
+  "classes": [
+    {
+      "name": "FlowExtractor",
+      "linesOfCode": 320,
+      "methods": [
+        {
+          "name": "Extract",
+          "linesOfCode": 130,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 33,
+          "maxNestingDepth": 6
+        },
+        {
+          "name": "IsAllowedReturn",
+          "linesOfCode": 8,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 5,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "ProcessMethod",
+          "linesOfCode": 6,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 3,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "ProcessTopLevelStatement",
+          "linesOfCode": 63,
+          "parameterCount": 4,
+          "cyclomaticComplexity": 28,
+          "maxNestingDepth": 4
+        },
+        {
+          "name": "HandleIf",
+          "linesOfCode": 31,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 11,
+          "maxNestingDepth": 4
+        },
+        {
+          "name": "HandleSwitch",
+          "linesOfCode": 14,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 5,
+          "maxNestingDepth": 4
+        },
+        {
+          "name": "TryDelegateInvocation",
+          "linesOfCode": 23,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 5,
+          "maxNestingDepth": 3
+        },
+        {
+          "name": "AddNode",
+          "linesOfCode": 5,
+          "parameterCount": 4,
+          "cyclomaticComplexity": 1,
+          "maxNestingDepth": 0
+        },
+        {
+          "name": "_logVerbose",
+          "linesOfCode": 4,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 2,
+          "maxNestingDepth": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "linesOfCode": 184,
+  "numberOfClasses": 1,
+  "numberOfPublicMethods": 2,
+  "numberOfPrivateMethods": 2,
+  "classes": [
+    {
+      "name": "EntrypointsExtractor",
+      "linesOfCode": 176,
+      "methods": [
+        {
+          "name": "SeedHostedServices",
+          "linesOfCode": 6,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 2,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "Extract",
+          "linesOfCode": 90,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 13,
+          "maxNestingDepth": 4
+        },
+        {
+          "name": "TryFindProgramMain",
+          "linesOfCode": 36,
+          "parameterCount": 3,
+          "cyclomaticComplexity": 14,
+          "maxNestingDepth": 6
+        },
+        {
+          "name": "CollectHostedServices",
+          "linesOfCode": 27,
+          "parameterCount": 4,
+          "cyclomaticComplexity": 11,
+          "maxNestingDepth": 3
+        }
+      ]
+    }
+  ]
+}

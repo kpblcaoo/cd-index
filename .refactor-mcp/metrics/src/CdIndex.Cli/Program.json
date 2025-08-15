@@ -1,0 +1,21 @@
+{
+  "linesOfCode": 390,
+  "numberOfClasses": 1,
+  "numberOfPublicMethods": 0,
+  "numberOfPrivateMethods": 1,
+  "classes": [
+    {
+      "name": "Program",
+      "linesOfCode": 385,
+      "methods": [
+        {
+          "name": "Main",
+          "linesOfCode": 380,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 150,
+          "maxNestingDepth": 5
+        }
+      ]
+    }
+  ]
+}

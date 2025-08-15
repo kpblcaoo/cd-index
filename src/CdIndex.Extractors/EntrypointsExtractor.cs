@@ -1,14 +1,12 @@
-using System.Collections.Generic;
-using System.Linq;
 using CdIndex.Core;
 using CdIndex.Roslyn;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.CSharp.Syntax; // Needed for ClassDeclarationSyntax, MethodDeclarationSyntax, etc.
 
 namespace CdIndex.Extractors;
 
-public sealed class EntrypointsExtractor : IExtractor
+public sealed class EntrypointsExtractor : IExtractor, IExtractor<EntrypointsSection>
 {
     // Reuse deterministic full qualification similar to DI extractor (without global::, include namespaces & containing types)
     private static readonly SymbolDisplayFormat FullNoGlobal = new(
@@ -19,6 +17,7 @@ public sealed class EntrypointsExtractor : IExtractor
     private readonly List<EntrypointsSection> _sections = new();
     private readonly HashSet<(string Type, string File, int Line)> _seedHosted = new();
     public IReadOnlyList<EntrypointsSection> Sections => _sections;
+    IReadOnlyList<EntrypointsSection> IExtractor<EntrypointsSection>.Items => _sections;
 
     // Allow re-use of DI.HostedServices (issue #13 requirement)
     public void SeedHostedServices(IEnumerable<HostedService> hosted)
@@ -43,22 +42,17 @@ public sealed class EntrypointsExtractor : IExtractor
             // Detect top-level statements entry point first
             try
             {
-                var comp = project.GetCompilationAsync().Result;
+                var comp = RoslynSync.GetCompilation(project);
                 var entry = comp?.GetEntryPoint(System.Threading.CancellationToken.None);
                 if (entry != null && entry.DeclaringSyntaxReferences.Length > 0)
                 {
                     var syntaxRef = entry.DeclaringSyntaxReferences[0];
                     var node = syntaxRef.GetSyntax() as CSharpSyntaxNode;
-                    var doc = project.Documents.FirstOrDefault(d => d.GetSyntaxRootAsync().Result == node?.SyntaxTree.GetRoot());
-                    // Fallback: map by path
+                    // Document retrieval not strictly needed for path; kept minimal
                     var filePath = syntaxRef.SyntaxTree?.FilePath;
                     if (filePath != null)
                     {
-                        var normalized = filePath.Replace("\\", "/");
-                        var repoRootNorm2 = context.RepoRoot.Replace("\\", "/");
-                        var relFile = normalized.StartsWith(repoRootNorm2, System.StringComparison.OrdinalIgnoreCase)
-                            ? normalized.Substring(repoRootNorm2.Length).TrimStart('/')
-                            : normalized;
+                        var relFile = PathEx.Normalize(filePath, context.RepoRoot);
                         var (file, line) = LocationUtil.GetLocation(node ?? syntaxRef.GetSyntax(), context);
                         // Type name might be synthesized (<Program>$) so only include if not compiler generated pattern
                         var typeName = entry.ContainingType?.ToDisplayString(FullNoGlobal);
@@ -75,9 +69,9 @@ public sealed class EntrypointsExtractor : IExtractor
 
             foreach (var document in documents)
             {
-                var root = document.GetSyntaxRootAsync().Result as CSharpSyntaxNode;
+                var root = RoslynSync.GetRoot(document) as CSharpSyntaxNode;
                 if (root == null) continue;
-                var semantic = document.GetSemanticModelAsync().Result;
+                var semantic = RoslynSync.GetModel(document);
                 if (semantic == null) continue;
 
                 if (programMain == null)
@@ -97,11 +91,7 @@ public sealed class EntrypointsExtractor : IExtractor
                 .ThenBy(h => h.Line)
                 .ToList();
 
-            var projectFile = (project.FilePath ?? string.Empty).Replace("\\", "/");
-            var repoRootNorm = context.RepoRoot.Replace("\\", "/");
-            var relProjectFile = projectFile.StartsWith(repoRootNorm, StringComparison.OrdinalIgnoreCase)
-                ? projectFile.Substring(repoRootNorm.Length).TrimStart('/')
-                : projectFile;
+            var relProjectFile = PathEx.Normalize(project.FilePath ?? string.Empty, context.RepoRoot);
 
             _sections.Add(new EntrypointsSection(
                 new ProjectRef(project.Name, relProjectFile),

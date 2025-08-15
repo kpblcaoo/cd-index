@@ -23,8 +23,13 @@ public static class PathEx
 {
     public static string Normalize(string path, string repoRoot)
     {
-        var rel = path.Replace(repoRoot, "").Replace("\\", "/").Replace("//", "/");
-        return rel.TrimStart('/');
+        if (string.IsNullOrEmpty(path)) return string.Empty;
+        var p = path.Replace("\\", "/");
+        var root = repoRoot.Replace("\\", "/");
+        if (p.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            p = p.Substring(root.Length);
+        p = p.Replace("//", "/").TrimStart('/');
+        return p;
     }
 }
 
@@ -35,5 +40,16 @@ public static class Orderer
         var list = source.ToList();
         list.Sort(comparer);
         return list;
+    }
+
+    public static IReadOnlyList<T> ThenDeterministic<T, TKey1, TKey2, TKey3>(IEnumerable<T> source,
+        Func<T, TKey1> k1, Func<T, TKey2> k2, Func<T, TKey3> k3,
+        IComparer<object>? cmp = null)
+    {
+        cmp ??= StringComparer.Ordinal as IComparer<object> ?? Comparer<object>.Default;
+        return source.OrderBy(x => k1(x), Comparer<TKey1>.Default)
+            .ThenBy(x => k2(x), Comparer<TKey2>.Default)
+            .ThenBy(x => k3(x), Comparer<TKey3>.Default)
+            .ToList();
     }
 }
