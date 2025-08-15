@@ -74,6 +74,23 @@ public sealed class CommandsAdvancedTests
     }
 
     [Fact]
+    public async Task Stable_Order_Is_Deterministic()
+    {
+        var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
+        var extractor1 = new CommandsExtractor();
+        extractor1.Extract(ctx);
+        var first = extractor1.Items.Select(i => ($"{i.Command}|{i.Handler}|{i.File}|{i.Line}")).ToList();
+        // Second run (same solution instance) to verify deterministic ordering & no mutation side-effects
+        var extractor2 = new CommandsExtractor();
+        extractor2.Extract(ctx);
+        var second = extractor2.Items.Select(i => ($"{i.Command}|{i.Handler}|{i.File}|{i.Line}")).ToList();
+        Assert.Equal(first, second);
+        // Also ensure strictly sorted by Command then Handler then File then Line
+        var sorted = first.OrderBy(x => x, StringComparer.Ordinal).ToList();
+        Assert.Equal(sorted, first);
+    }
+
+    [Fact]
     public async Task CaseInsensitiveConflict_Reported()
     {
         var ctx = await SolutionLoader.LoadSolutionAsync(SlnPath, TestRepoRoot);
