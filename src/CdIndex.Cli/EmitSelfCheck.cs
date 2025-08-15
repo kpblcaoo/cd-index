@@ -74,20 +74,21 @@ class EmitSelfCheck
         var index = new ProjectIndex(
             new Meta(
                 "0.0.1-dev",
-                "1.1",
+                "1.2",
                 DateTime.Parse("2025-01-01T00:00:00Z", null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal),
-                null
+                null,
+                null // Sections will be filled by emitter
             ),
-            scanTreeOnly ? new List<ProjectSection>() : new List<ProjectSection>(),
+            new List<ProjectSection>(),
             new List<TreeSection> { treeSection },
-            scanTreeOnly ? new List<DISection>() : new List<DISection> { diSection },
-            scanTreeOnly ? new List<EntrypointsSection>() : entrypointsSections,
-            scanTreeOnly ? new List<MessageFlowSection>() : new List<MessageFlowSection>(),
-            scanTreeOnly ? new List<CallgraphsSection>() : new List<CallgraphsSection>(),
-            scanTreeOnly ? new List<ConfigSection>() : new List<ConfigSection>(),
-            scanTreeOnly ? new List<CommandSection>() : new List<CommandSection>(),
+            scanTreeOnly || !scanDi ? null : new List<DISection> { diSection },
+            scanTreeOnly || !scanEntrypoints ? null : entrypointsSections,
             null,
-            scanTreeOnly ? new List<TestSection>() : new List<TestSection>()
+            null,
+            null,
+            null,
+            null,
+            null
         );
         using var stream = Console.OpenStandardOutput();
         JsonEmitter.Emit(index, stream);

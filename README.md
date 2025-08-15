@@ -131,7 +131,26 @@ All emitted JSON collections are sorted (ordinal). Paths are repo-relative with 
 When `--di-dedupe` is set, the first occurrence of a (Interface,Implementation,Lifetime) triple is retained (stable first-wins) to avoid ordering jitter from different compilation/loading orders.
 
 ## Schema & Docs
-See `schema/project_index.schema.json`. New sections (v1.1): `Configs`, `Commands`, `MessageFlow`.
+Schema version: **1.2**
+
+Breaking change vs 1.1: only `Meta` and `Project` are required. All other sections are optional and omitted when not requested or when they would be empty. The emitted `Meta.Sections` array (optional) lists the section names actually present (excluding `Project`).
+
+Implications:
+- No more noise of large empty arrays in neutral scans.
+- Validation only enforces presence & shape of existing sections.
+- Diff tooling (future) should default to intersecting available sections; callers can enforce a set with a `--sections` flag.
+
+Typical `Meta.Sections` example:
+```jsonc
+"Meta": {
+	"Version": "0.0.1-dev",
+	"SchemaVersion": "1.2",
+	"GeneratedAt": "2025-01-01T00:00:00Z",
+	"Sections": ["DI","Entrypoints","Tree"]
+}
+```
+
+If no optional sections were produced, `Sections` may be an empty array (or omitted).
 
 Additional docs:
 - `README.flow.md` – flow extractor patterns, resolution strategy, verbose diagnostics.
@@ -167,17 +186,17 @@ Further extractors (callgraphs, test detection) to follow; focus remains on dete
 ## Quick jq Verification
 Examples for sanity-checking output JSON.
 
-List top 10 commands:
+List top 10 commands (if present):
 ```
 jq '.Commands.Items | .[:10]' index.json
 ```
 
-List comparison-derived commands only (after running with `--commands-include comparison`):
+List comparison-derived commands only (if section present and run with `--commands-include comparison`):
 ```
 jq '.Commands.Items | map(select(.Origin == "Comparison"))' index.json
 ```
 
-Show DI duplicates (should be empty when using `--di-dedupe`):
+Show DI duplicates (if DI present; should be empty when using `--di-dedupe`):
 ```
 jq '.DI.Registrations
  | group_by([.Interface,.Implementation,.Lifetime])
@@ -189,7 +208,7 @@ Confirm no Exception implementations:
 jq '.DI.Registrations | map(select(.Implementation|endswith("Exception")))' index.json
 ```
 
-Count env config keys by prefix:
+Count env config keys by prefix (if Configs present):
 ```
 jq '.Configs.EnvKeys | group_by(.Prefix) | map({prefix:.[0].Prefix,count:length})' index.json
 ```

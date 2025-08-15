@@ -55,7 +55,7 @@ internal static class ScanCommand
 
         if (verbose) Console.Error.WriteLine("[scan] building sections...");
 
-        var meta = new Meta("1.0", "1.1", DateTime.UtcNow, null);
+        var meta = new Meta("1.0", "1.2", DateTime.UtcNow, null, null);
 
         // Project sections: minimal for now (one per project in solution)
         var repoRootNorm = NormalizePath(repoRoot);
@@ -372,16 +372,15 @@ internal static class ScanCommand
         var index = new ProjectIndex(
             meta,
             projectSections,
-            treeSections,
-            scanDi ? new[] { diSection } : Array.Empty<DISection>(),
-            entrySections,
-            flowSections,
-            callgraphSections,
-            configSections,
-            // commandsSections empty when scanCommands=false (neutral default -> no noise)
-            commandSections,
-            cliCommandsSections,
-            Array.Empty<TestSection>()
+            treeSections.Count == 0 ? null : treeSections,
+            scanDi && diSection.Registrations.Count + diSection.HostedServices.Count > 0 ? new[] { diSection } : null,
+            entrySections.Count == 0 ? null : entrySections,
+            flowSections.Count == 0 ? null : flowSections,
+            callgraphSections.Count == 0 ? null : callgraphSections,
+            configSections.Count == 0 ? null : configSections,
+            commandSections.Count == 0 ? null : commandSections,
+            cliCommandsSections != null && cliCommandsSections.Length > 0 ? cliCommandsSections : null,
+            null
         );
 
         try

@@ -106,7 +106,7 @@ public class JsonEmitterTests
     public void JsonEmitter_Emit_MetaGeneratedAt_IsIso8601Utc()
     {
         // Arrange
-        var meta = new Meta("1.0.0", "1.1", DateTime.UtcNow, null);
+        var meta = new Meta("1.0.0", "1.2", DateTime.UtcNow, null, null);
         var index = new ProjectIndex(
             meta,
             Array.Empty<ProjectSection>(),
@@ -139,7 +139,7 @@ public class JsonEmitterTests
     public void JsonEmitter_Emit_Orders_Entrypoints_And_HostedServices()
     {
         // Arrange: create deliberately unsorted entrypoints and hosted services
-        var meta = new Meta("1.0.0", "1.1", DateTime.UtcNow, null);
+        var meta = new Meta("1.0.0", "1.2", DateTime.UtcNow, null, null);
         var hostedA = new HostedService("ZType", "b/File2.cs", 30);
         var hostedB = new HostedService("AType", "a/File1.cs", 10);
         var hostedC = new HostedService("AType", "a/File1.cs", 5); // same type/file different line
@@ -211,9 +211,10 @@ public class JsonEmitterTests
     {
         var meta = new Meta(
             "1.0.0",
-            "1.1",
+            "1.2",
             DateTime.UtcNow,
-            "https://github.com/test/repo"
+            "https://github.com/test/repo",
+            null
         );
 
         var project = new ProjectSection(
@@ -262,7 +263,7 @@ public class JsonEmitterTests
 
     private static ProjectIndex CreateProjectIndexWithFiles(string timestamp, params string[] filePaths)
     {
-        var meta = new Meta("1.0.0", "1.1", DateTime.Parse(timestamp));
+        var meta = new Meta("1.0.0", "1.2", DateTime.Parse(timestamp), null, null);
 
         var files = filePaths.Select(path =>
             new FileEntry(path, Path.GetExtension(path).TrimStart('.').ToLowerInvariant(), 10, new string('a', 64))).ToArray();
