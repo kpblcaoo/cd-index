@@ -317,7 +317,7 @@ internal static class ScanCommand
         }
 
         // CLI commands extraction placeholder (implemented in p1-C1): keep empty for now unless future flag used.
-        var cliCommands = new List<CliCommand>();
+        CliCommandsSection[]? cliCommandsSections = null; // populated when --scan-cli-commands implemented
 
         var index = new ProjectIndex(
             meta,
@@ -330,7 +330,7 @@ internal static class ScanCommand
             configSections,
             // commandsSections empty when scanCommands=false (neutral default -> no noise)
             commandSections,
-            cliCommands,
+            cliCommandsSections,
             Array.Empty<TestSection>()
         );
 

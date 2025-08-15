@@ -117,7 +117,7 @@ public class JsonEmitterTests
             Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
-            Array.Empty<CliCommand>(),
+            null,
             Array.Empty<TestSection>()
         );
 
@@ -157,7 +157,7 @@ public class JsonEmitterTests
             Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
-            Array.Empty<CliCommand>(),
+            null,
             Array.Empty<TestSection>()
         );
 
@@ -255,7 +255,7 @@ public class JsonEmitterTests
             Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
-            Array.Empty<CliCommand>(),
+            null,
             Array.Empty<TestSection>()
         );
     }
@@ -279,7 +279,7 @@ public class JsonEmitterTests
             Array.Empty<CallgraphsSection>(),
             Array.Empty<ConfigSection>(),
             Array.Empty<CommandSection>(),
-            Array.Empty<CliCommand>(),
+            null,
             Array.Empty<TestSection>()
         );
     }

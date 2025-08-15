@@ -129,22 +129,7 @@ public static class JsonEmitter
             ),
             orderedConfigs,
             index.Commands,
-            Orderer.Sort(
-                index.CliCommands.Select(c => new CliCommand(
-                    c.Command,
-                    c.Aliases.OrderBy(a => a, StringComparer.Ordinal).ToList(),
-                    c.Options.OrderBy(o => o, StringComparer.Ordinal).ToList(),
-                    c.Arguments.OrderBy(a => a, StringComparer.Ordinal).ToList(),
-                    c.File,
-                    c.Line
-                )),
-                Comparer<CliCommand>.Create((a, b) =>
-                {
-                    var c = string.Compare(a.Command, b.Command, StringComparison.Ordinal);
-                    if (c != 0) return c;
-                    return string.Compare(a.File, b.File, StringComparison.Ordinal);
-                })
-            ),
+            index.CliCommands, // already expected to be pre-sorted by extractor if present
             index.Tests
         );
     }
