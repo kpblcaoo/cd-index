@@ -325,6 +325,7 @@ internal static class ScanCommand
             flowSections,
             callgraphSections,
             configSections,
+            // commandsSections empty when scanCommands=false (neutral default -> no noise)
             commandSections,
             Array.Empty<TestSection>()
         );

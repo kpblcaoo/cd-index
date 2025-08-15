@@ -147,7 +147,7 @@ Options:
             List<string>? sectionsRequested = null;
             string? commandConflictReport = null;
             var locMode = "physical";
-            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false;
+            bool scanTree = true, scanDi = true, scanEntrypoints = true, scanConfigs = false, scanCommands = false, scanFlow = false, verbose = false; // neutral defaults
             bool scanCallgraphs = false;
             bool noPretty = false;
             string? flowHandler = null; string flowMethod = "HandleAsync"; string? flowDelegateSuffixes = null;
@@ -291,7 +291,7 @@ Options:
                         case "entrypoints": scanEntrypoints = true; break;
                         case "configs": scanConfigs = true; break;
                         case "commands": scanCommands = true; break;
-                        case "messageflow": scanFlow = true; break;
+                        case "messageflow": scanFlow = true; break; // still requires handler later
                         case "callgraphs": scanCallgraphs = true; break;
                         default: Console.Error.WriteLine($"WARN: unknown section '{s}' ignored"); break;
                     }

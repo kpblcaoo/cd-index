@@ -15,7 +15,8 @@ public sealed class ScanConfig
             Ignore = new() { "bin", "obj", ".git", "logs", "StrykerOutput", "tmp" },
             Ext = new() { ".cs", ".csproj", ".sln", ".json", ".yaml", ".yml" },
             NoTree = false,
-            Sections = new() { "Tree", "DI", "Entrypoints", "Configs", "Commands", "MessageFlow" }
+            // Neutral defaults: do not pre-enable Commands or MessageFlow (must be explicitly opted-in)
+            Sections = new() { "Tree", "DI", "Entrypoints", "Configs" }
         },
         Tree = new TreeSection { LocMode = "physical", UseGitignore = true },
         DI = new DiSection { Dedupe = "keep-all" },
