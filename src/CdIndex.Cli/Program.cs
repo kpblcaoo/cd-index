@@ -84,7 +84,7 @@ Options:
         {
             if (args.Length == 1 || args.Skip(1).Any(IsHelp))
             {
-                Console.WriteLine("Usage: cd-index config <init|print> [options]\n  init  Generate cd-index.toml (use --force to overwrite)\n  print Show merged configuration (after defaults+TOML; CLI overrides not applied here yet)." );
+                Console.WriteLine("Usage: cd-index config <init|print|example> [options]\n  init     Generate cd-index.toml (use --force to overwrite)\n  print    Show merged configuration (after defaults+TOML; CLI overrides not applied here yet)\n  example  Print rich commented example (defaults only, ignores existing file)." );
                 return 0;
             }
             var sub = args[1];
@@ -118,6 +118,12 @@ Options:
                     var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
                     foreach (var d in diags) Console.Error.WriteLine(d);
                     Console.WriteLine(Config.ConfigExampleBuilder.Build(cfg));
+                    return 0;
+                }
+                case "example":
+                {
+                    var defaults = Config.ScanConfig.Defaults();
+                    Console.WriteLine(Config.ConfigExampleBuilder.Build(defaults));
                     return 0;
                 }
                 default:
