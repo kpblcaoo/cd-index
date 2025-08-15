@@ -34,6 +34,7 @@ Options:
     --commands-include <modes>                  router,attributes,comparison (default router,attributes)
     --commands-conflicts <mode>                 warn|error|ignore (default warn)
     --commands-conflict-report <file>           Optional JSON file with conflict details (no schema change)
+    --commands-allow-regex <regex>              Override allowed command validation regex (default ^/[a-z][a-z0-9_]*$)
     --di-dedupe                                 Enable DI duplicate suppression (keep first)
     --scan-flow / --no-scan-flow     Enable/disable message flow extraction (default off)
     --flow-handler <TypeName>        Handler class name for flow (required if --scan-flow)
@@ -72,6 +73,47 @@ Options:
         rootCommand.Options.Add(scanDiOption);
         rootCommand.Options.Add(scanEntrypointsOption);
 
+        // Config commands: config init / config print
+        if (args.Length > 0 && string.Equals(args[0], "config", StringComparison.OrdinalIgnoreCase))
+        {
+            if (args.Length == 1 || args.Skip(1).Any(IsHelp))
+            {
+                Console.WriteLine("Usage: cd-index config <init|print> [options]\n  init  Generate cd-index.toml (use --force to overwrite)\n  print Show merged configuration (after defaults+TOML; CLI overrides not applied here yet)." );
+                return 0;
+            }
+            var sub = args[1];
+            switch (sub)
+            {
+                case "init":
+                {
+                    var force = args.Contains("--force");
+                    var path = args.Skip(2).FirstOrDefault(a => a == "--path") != null ? args.SkipWhile(a => a != "--path").Skip(1).FirstOrDefault() : null;
+                    path ??= Path.Combine(Directory.GetCurrentDirectory(), "cd-index.toml");
+                    if (File.Exists(path) && !force)
+                    {
+                        Console.Error.WriteLine($"Config file '{path}' already exists. Use --force to overwrite.");
+                        return 8;
+                    }
+                    var defaults = Config.ScanConfig.Defaults();
+                    File.WriteAllText(path, ConfigTemplate(defaults));
+                    Console.WriteLine($"Written template config to {path}");
+                    return 0;
+                }
+                case "print":
+                {
+                    string? explicitPath = null;
+                    for (int i=2;i<args.Length;i++) if (args[i]=="--config" && i+1<args.Length) explicitPath = args[++i];
+                    var (cfg, source, diags) = ConfigLoader.Load(explicitPath, Directory.GetCurrentDirectory(), verbose: true);
+                    foreach (var d in diags) Console.Error.WriteLine(d);
+                    Console.WriteLine(ConfigTemplate(cfg));
+                    return 0;
+                }
+                default:
+                    Console.Error.WriteLine($"Unknown config subcommand '{sub}'");
+                    return 5;
+            }
+        }
+
         // Manual 'scan' command handling (simpler & stable across System.CommandLine betas)
         if (args.Length > 0 && string.Equals(args[0], "scan", StringComparison.OrdinalIgnoreCase))
         {
@@ -99,12 +141,15 @@ Options:
             string? commandDedup = null;
             string? commandConflicts = null;
             var commandInclude = new List<string>();
+            string? commandAllowRegex = null;
             bool diDedupe = false;
-            for (int i = 1; i < args.Length; i++)
+        string? configPath = null;
+        for (int i = 1; i < args.Length; i++)
             {
                 var a = args[i];
                 switch (a)
                 {
+            case "--config": if (i + 1 < args.Length) configPath = args[++i]; else return 5; break;
                     case "--sln": if (i + 1 < args.Length) slnPath = args[++i]; else return 5; break;
                     case "--csproj": if (i + 1 < args.Length) csprojPath = args[++i]; else return 5; break;
                     case "--out": if (i + 1 < args.Length) outFile = new FileInfo(args[++i]); else return 5; break;
@@ -156,6 +201,8 @@ Options:
                         break;
                     case "--commands-include":
                         if (i + 1 < args.Length) commandInclude.AddRange(args[++i].Split(',', ' ', StringSplitOptions.RemoveEmptyEntries)); else return 5; break;
+                    case "--commands-allow-regex":
+                        if (i + 1 < args.Length) commandAllowRegex = args[++i]; else return 5; break;
                     case "--di-dedupe":
                         diDedupe = true; break;
                     case "--scan-flow": scanFlow = true; break;
@@ -223,6 +270,30 @@ Options:
                     }
                 }
             }
+            // Load config (merge defaults + TOML). CLI overrides applied below manually (phase 2 TODO).
+            var repoRoot = slnPath != null ? Path.GetDirectoryName(Path.GetFullPath(slnPath))! : Directory.GetCurrentDirectory();
+            var (cfg, cfgSource, loadDiags) = ConfigLoader.Load(configPath, repoRoot, verbose);
+            if (verbose)
+            {
+                foreach (var d in loadDiags) Console.Error.WriteLine(d);
+            }
+            // CLI overrides currently override key lists if provided (ignore/ext/sections)
+            if (exts.Count > 0) cfg.Scan.Ext = exts;
+            if (ignores.Count > 0) cfg.Scan.Ignore = ignores;
+            if (sectionsRequested != null) cfg.Scan.Sections = sectionsRequested;
+            if (cfg.Scan.NoTree) { scanTree = false; }
+            if (cfg.Tree.UseGitignore) useGitignore = true; // CLI --gitignore already set earlier
+            if (cfg.DI.Dedupe == "keep-first") diDedupe = true;
+            if (cfg.Commands.Include.Count > 0 && commandInclude.Count == 0) commandInclude = cfg.Commands.Include;
+            if (cfg.Commands.RouterNames.Count > 0 && commandRouterNames.Count == 0) commandRouterNames = cfg.Commands.RouterNames;
+            if (cfg.Commands.AttrNames.Count > 0 && commandAttrNames.Count == 0) commandAttrNames = cfg.Commands.AttrNames;
+            if (cfg.Commands.Normalize.Count > 0 && commandNormalize.Count == 0) commandNormalize = cfg.Commands.Normalize;
+            if (commandDedup == null) commandDedup = cfg.Commands.Dedup;
+            if (commandConflicts == null) commandConflicts = cfg.Commands.Conflicts;
+            if (commandAllowRegex == null && !string.IsNullOrWhiteSpace(cfg.Commands.AllowRegex)) commandAllowRegex = cfg.Commands.AllowRegex;
+            if (cfg.Flow.Handler != null && flowHandler == null) flowHandler = cfg.Flow.Handler;
+            if (flowDelegateSuffixes == null && cfg.Flow.DelegateSuffixes.Count > 0) flowDelegateSuffixes = string.Join(',', cfg.Flow.DelegateSuffixes);
+
             var code = ScanCommand.Run(
                 slnPath != null ? new FileInfo(slnPath) : null,
                 csprojPath != null ? new FileInfo(csprojPath) : null,
@@ -250,7 +321,8 @@ Options:
                 commandConflictReport,
                 flowDelegateSuffixes != null ? flowDelegateSuffixes.Split(',', ' ', StringSplitOptions.RemoveEmptyEntries) : null,
                 commandInclude,
-                diDedupe);
+                diDedupe,
+                commandAllowRegex);
             return code;
         }
 
@@ -278,4 +350,38 @@ Options:
         // ...дополнительная логика команд...
         return 0;
     }
+
+    private static string ConfigTemplate(Config.ScanConfig cfg)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("# cd-index configuration (TOML)");
+        sb.AppendLine("[scan]");
+        sb.AppendLine($"ignore = [{string.Join(',', cfg.Scan.Ignore.Select(s=>Quote(s)))}]");
+        sb.AppendLine($"ext = [{string.Join(',', cfg.Scan.Ext.Select(s=>Quote(s)))}]");
+        sb.AppendLine($"noTree = {cfg.Scan.NoTree.ToString().ToLowerInvariant()}");
+        sb.AppendLine($"sections = [{string.Join(',', cfg.Scan.Sections.Select(s=>Quote(s)))}]");
+        sb.AppendLine();
+        sb.AppendLine("[tree]");
+        sb.AppendLine($"locMode = \"{cfg.Tree.LocMode}\"");
+        sb.AppendLine($"useGitignore = {cfg.Tree.UseGitignore.ToString().ToLowerInvariant()}");
+        sb.AppendLine();
+        sb.AppendLine("[di]");
+        sb.AppendLine($"dedupe = \"{cfg.DI.Dedupe}\"");
+        sb.AppendLine();
+        sb.AppendLine("[commands]");
+        sb.AppendLine($"include = [{string.Join(',', cfg.Commands.Include.Select(Quote))}]");
+        sb.AppendLine($"attrNames = [{string.Join(',', cfg.Commands.AttrNames.Select(Quote))}]");
+        sb.AppendLine($"routerNames = [{string.Join(',', cfg.Commands.RouterNames.Select(Quote))}]");
+        sb.AppendLine($"normalize = [{string.Join(',', cfg.Commands.Normalize.Select(Quote))}]");
+        sb.AppendLine($"allowRegex = \"{cfg.Commands.AllowRegex}\"");
+        sb.AppendLine($"dedup = \"{cfg.Commands.Dedup}\"");
+        sb.AppendLine($"conflicts = \"{cfg.Commands.Conflicts}\"");
+        sb.AppendLine();
+        sb.AppendLine("[flow]");
+    sb.AppendLine("handler = " + (cfg.Flow.Handler!=null ? Quote(cfg.Flow.Handler) : "null"));
+        sb.AppendLine($"method = \"{cfg.Flow.Method}\"");
+        sb.AppendLine($"delegateSuffixes = [{string.Join(',', cfg.Flow.DelegateSuffixes.Select(Quote))}]");
+        return sb.ToString();
+    }
+    private static string Quote(string s) => $"\"{s}\"";
 }
